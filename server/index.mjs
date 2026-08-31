@@ -1,0 +1,114 @@
+import 'dotenv/config'
+import express from 'express'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import {
+  buildCodaLoginUrl,
+  clearSharedSessionCookie,
+  landingSessionFromCoda,
+  sharedSessionCookieHeader,
+} from './coda-sso.mjs'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const root = path.resolve(__dirname, '..')
+const app = express()
+const port = Number(process.env.PORT || 8787)
+const isProduction = process.env.NODE_ENV === 'production'
+const codaAuthBaseUrl = process.env.CODA_AUTH_BASE_URL || (isProduction ? 'https://admin.thehowlingwhispers.com' : '')
+const publicBaseUrl = process.env.PUBLIC_BASE_URL || (isProduction ? 'https://thehowlingwhispers.com' : '')
+const sharedCookieDomain = process.env.CODA_COOKIE_DOMAIN || (isProduction ? '.thehowlingwhispers.com' : '')
+const authReady = Boolean(codaAuthBaseUrl && publicBaseUrl)
+
+app.disable('x-powered-by')
+app.set('trust proxy', 1)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+  if (isProduction) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; img-src 'self' https://cdn.discordapp.com data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'",
+    )
+  }
+  next()
+})
+
+app.get('/api/health', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json({ ok: true, authReady, authSource: 'coda-sso' })
+})
+
+app.get('/api/session', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  if (!authReady) return res.json({ authenticated: false })
+
+  const cookie = sharedSessionCookieHeader(req.headers.cookie || '')
+  if (!cookie) return res.json({ authenticated: false })
+
+  try {
+    const response = await fetch(new URL('/api/coda/auth/landing', codaAuthBaseUrl), {
+      headers: { Cookie: cookie, Accept: 'application/json' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!response.ok) return res.status(502).json({ authenticated: false })
+    const payload = await response.json()
+    res.json(landingSessionFromCoda(payload))
+  } catch (error) {
+    console.error('Coda SSO identity lookup failed:', error)
+    res.status(502).json({ authenticated: false })
+  }
+})
+
+app.get('/auth/discord', (_req, res) => {
+  if (!authReady) {
+    return res.status(503).send('Shared Discord authentication is not configured yet.')
+  }
+
+  const returnTo = new URL('/', publicBaseUrl)
+  returnTo.searchParams.set('worthy', '1')
+  res.redirect(buildCodaLoginUrl(codaAuthBaseUrl, returnTo.toString()))
+})
+
+app.get('/auth/logout', async (req, res) => {
+  const cookie = sharedSessionCookieHeader(req.headers.cookie || '')
+  if (authReady && cookie) {
+    try {
+      await fetch(new URL('/api/coda/auth/logout', codaAuthBaseUrl), {
+        method: 'POST',
+        headers: { Cookie: cookie, Accept: 'application/json' },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(5000),
+      })
+    } catch (error) {
+      console.error('Coda SSO logout cleanup failed:', error)
+    }
+  }
+
+  res.setHeader('Set-Cookie', clearSharedSessionCookie({
+    secure: isProduction,
+    domain: sharedCookieDomain,
+  }))
+  res.redirect('/')
+})
+
+const dist = path.join(root, 'dist')
+app.use(express.static(dist, {
+  maxAge: isProduction ? '1h' : 0,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('index.html')) res.setHeader('Cache-Control', 'no-cache')
+  },
+}))
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) return next()
+  res.setHeader('Cache-Control', 'no-cache')
+  res.sendFile(path.join(dist, 'index.html'))
+})
+
+app.listen(port, () => {
+  console.log(`HW Landing gate listening on http://localhost:${port}`)
+  if (!authReady) console.log('Shared Coda SSO is not configured. See .env.example.')
+})

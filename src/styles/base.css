@@ -1,0 +1,81 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f4eee8;
+  background: #040405;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --copper: #c98752;
+  --copper-bright: #e1aa77;
+  --copper-deep: #74462d;
+  --ink: #040405;
+  --panel: rgba(18, 13, 12, .76);
+  --line: rgba(205, 145, 92, .23);
+  --muted: #968a83;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--ink); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+  overflow-x: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  background:
+    radial-gradient(circle at 50% 16%, rgba(88, 49, 30, .18), transparent 25%),
+    radial-gradient(circle at 50% 72%, rgba(57, 28, 17, .08), transparent 36%),
+    #040405;
+}
+body.gate-locked { overflow: hidden; }
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .18;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(circle at 50% 44%, black, transparent 76%);
+}
+a { color: inherit; text-decoration: none; }
+button, a { -webkit-tap-highlight-color: transparent; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--copper-bright); outline-offset: 5px; }
+
+#field,
+#shatter,
+.cursor-aura { position: fixed; inset: 0; pointer-events: none; }
+#field { z-index: 1; }
+#shatter { z-index: 8; opacity: 0; transition: opacity .15s ease; }
+#shatter.active { opacity: 1; }
+.cursor-aura {
+  z-index: 1;
+  background: radial-gradient(460px circle at var(--x, -1000px) var(--y, -1000px), rgba(198, 125, 72, .09), transparent 72%);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  letter-spacing: .32em;
+  font-size: .69rem;
+  color: #bc7d4d;
+  font-weight: 800;
+}
+h1, h2, h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  letter-spacing: -.035em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+  .orbit,
+  .orbit-marks { display: none; }
+}

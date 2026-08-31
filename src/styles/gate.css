@@ -1,0 +1,192 @@
+.gate {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 42px 24px 54px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.gate::before,
+.gate::after { content: ""; position: absolute; pointer-events: none; }
+.gate::before {
+  width: min(900px, 94vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(205,145,92,.05);
+  box-shadow: 0 0 120px rgba(177, 99, 54, .045) inset;
+}
+.gate::after {
+  width: 1px;
+  height: 34vh;
+  bottom: 0;
+  background: linear-gradient(transparent, rgba(205,145,92,.2), transparent);
+}
+.sigil-wrap {
+  width: min(980px, 100%);
+  min-height: 730px;
+  display: grid;
+  grid-template-rows: minmax(390px, 1fr) auto;
+  place-items: center;
+  position: relative;
+  text-align: center;
+}
+.gate-horizon {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  width: min(860px, 94vw);
+  height: 1px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, rgba(214,158,105,.22), transparent);
+  box-shadow: 0 0 34px rgba(205,145,92,.08);
+}
+.orbit {
+  position: absolute;
+  top: 41%;
+  left: 50%;
+  border: 1px solid rgba(205,145,92,.14);
+  border-radius: 50%;
+  pointer-events: none;
+  transform-origin: center;
+  transition: opacity .4s ease, border-color .4s ease;
+}
+.orbit-a { width: min(720px, 91vw); aspect-ratio: 1; animation: orbitA 23s linear infinite; }
+.orbit-b { width: min(545px, 74vw); aspect-ratio: 1; animation: orbitB 31s linear infinite reverse; }
+.orbit-marks {
+  position: absolute;
+  top: 41%;
+  left: 50%;
+  width: min(650px, 84vw);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  opacity: .42;
+  background: repeating-conic-gradient(from 7deg, rgba(211,151,98,.26) 0 1deg, transparent 1deg 12deg);
+  mask: radial-gradient(transparent 0 73%, #000 73.2% 74%, transparent 74.2%);
+  animation: rotateMarks 48s linear infinite;
+  transition: opacity .4s ease;
+}
+.sigil {
+  --rx: 0deg;
+  --ry: 0deg;
+  --hx: 50%;
+  --hy: 50%;
+  position: relative;
+  z-index: 2;
+  align-self: end;
+  width: min(370px, 70vw);
+  aspect-ratio: 1;
+  transform: perspective(1000px) rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform .18s ease, filter .4s ease;
+  animation: sigilEnter 1.7s cubic-bezier(.16,.8,.22,1) both;
+}
+.sigil::before,
+.sigil::after { content: ""; position: absolute; pointer-events: none; border-radius: 50%; }
+.sigil::before {
+  inset: 9%;
+  background: radial-gradient(circle, rgba(207,139,84,.12), transparent 67%);
+  filter: blur(18px);
+  animation: sigilPulse 5.8s ease-in-out infinite;
+}
+.sigil::after {
+  inset: 5%;
+  background: radial-gradient(circle at var(--hx) var(--hy), rgba(255,221,184,.22), transparent 31%);
+  mix-blend-mode: screen;
+  opacity: .06;
+  transition: opacity .25s ease;
+}
+.sigil:hover::after,
+.sigil:focus-visible::after { opacity: 1; }
+.sigil:hover { filter: drop-shadow(0 0 28px rgba(205,145,92,.3)); }
+.sigil img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 20px 46px rgba(0,0,0,.62));
+}
+.gate-copy {
+  position: relative;
+  z-index: 3;
+  margin-top: -22px;
+  max-width: 690px;
+  animation: copyEnter 1.05s 1.12s ease both;
+}
+h1 { margin: 0; font-size: clamp(2.8rem, 7vw, 5.9rem); line-height: .92; text-wrap: balance; }
+.gate-copy > p:not(.eyebrow) {
+  color: #a99e97;
+  margin: 22px auto 28px;
+  max-width: 600px;
+  font-size: clamp(1rem, 2vw, 1.12rem);
+  line-height: 1.75;
+}
+.discord-button {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 29px;
+  border: 1px solid rgba(221,160,105,.58);
+  background: linear-gradient(180deg, rgba(177,112,66,.23), rgba(90,50,31,.12));
+  letter-spacing: .17em;
+  font-size: .76rem;
+  font-weight: 850;
+  color: #faeadb;
+  position: relative;
+  overflow: hidden;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease, opacity .25s ease;
+}
+.discord-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-120%);
+  background: linear-gradient(90deg, transparent, rgba(255,224,196,.18), transparent);
+  transition: transform .55s ease;
+}
+.discord-button:hover::before { transform: translateX(120%); }
+.discord-button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(230,174,122,.94);
+  background: rgba(145,86,48,.25);
+  box-shadow: 0 10px 32px rgba(0,0,0,.24), 0 0 22px rgba(198,125,72,.09);
+}
+.discord-button[aria-disabled="true"] { pointer-events: none; opacity: .66; }
+.gate-note { display: block; margin-top: 14px; color: #6f625a; font-size: .74rem; letter-spacing: .045em; }
+.gate-note.warning { color: #c18a62; }
+.gate-accepted .sigil { filter: brightness(1.13) drop-shadow(0 0 38px rgba(222,158,101,.34)); }
+.gate-accepted .sigil::before { animation-duration: 1.15s; background: radial-gradient(circle, rgba(222,153,94,.22), transparent 67%); }
+.gate-accepted .orbit { opacity: .58; border-color: rgba(226,168,114,.27); }
+.gate-accepted .orbit-a { animation-duration: 6.4s; }
+.gate-accepted .orbit-b { animation-duration: 8.2s; }
+.gate-accepted .orbit-marks { opacity: .72; animation-duration: 10s; }
+.gate-shattering .gate-copy,
+.gate-shattering .orbit,
+.gate-shattering .orbit-marks,
+.gate-shattering .gate-horizon { animation: none; opacity: 0; transition: opacity .32s ease; }
+.gate-shattering .sigil img { opacity: 0; }
+.gate-dissolve { opacity: 0; transition: opacity .12s ease; }
+
+@keyframes sigilEnter {
+  0% { opacity: 0; transform: scale(.72) rotate(-6deg); filter: blur(18px) brightness(.2); }
+  58% { opacity: 1; transform: scale(1.025) rotate(.4deg); filter: blur(0) brightness(1.18); }
+  100% { opacity: 1; transform: scale(1); filter: none; }
+}
+@keyframes copyEnter { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+@keyframes sigilPulse { 50% { transform: scale(1.08); opacity: .62; } }
+@keyframes orbitA { from { transform: translate(-50%, -50%) rotate(14deg) scaleY(.46); } to { transform: translate(-50%, -50%) rotate(374deg) scaleY(.46); } }
+@keyframes orbitB { from { transform: translate(-50%, -50%) rotate(-26deg) scaleY(.62); } to { transform: translate(-50%, -50%) rotate(334deg) scaleY(.62); } }
+@keyframes rotateMarks { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+@media (max-width: 620px) {
+  .gate { padding: 24px 16px 36px; }
+  .sigil-wrap { min-height: 660px; grid-template-rows: minmax(350px, 1fr) auto; }
+  .sigil { width: min(330px, 78vw); }
+  .gate-copy { margin-top: -16px; }
+}
+@media (hover: none) { .sigil:hover { filter: none; } }

@@ -1,0 +1,30 @@
+{
+  "name": "hw-landing",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "node --watch server/index.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test",
+    "build": "vite build",
+    "smoke": "node scripts/smoke-server.mjs",
+    "check": "npm run typecheck && npm test && node --check server/index.mjs && npm run build && npm run smoke",
+    "start": "node server/index.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3"
+  }
+}
