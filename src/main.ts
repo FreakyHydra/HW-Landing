@@ -31,6 +31,7 @@ async function loadSession() {
     if (!response.ok) return
     const session = await response.json() as Session
     if (session.authenticated) {
+      await ui.sigilImage.decode().catch(() => undefined)
       setTimeout(() => revealWorld(session), reducedMotion ? 80 : 760)
     }
   } catch {
