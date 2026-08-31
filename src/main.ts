@@ -1,7 +1,7 @@
 import './style.css'
 import { createField } from './field'
 import { shatterSigil } from './shatter'
-import { mountUi, renderIdentity, renderProjects, showDeniedReason } from './ui'
+import { markGateAccepted, mountUi, renderIdentity, renderProjects, showDeniedReason } from './ui'
 import type { AccessTier, Session } from './projects'
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -35,7 +35,6 @@ function devPreviewSession(): Session | undefined {
     dev: ['stable', 'all'],
   }
   if (!preview || !accessMap[preview]) return undefined
-  ui.gateNote.textContent = `Local preview seal: ${preview.toUpperCase()}`
   return {
     authenticated: true,
     user: { username: 'Gate Preview' },
@@ -53,7 +52,8 @@ async function loadSession() {
 
     if (session.authenticated) {
       await ui.sigilImage.decode().catch(() => undefined)
-      setTimeout(() => revealWorld(session), reducedMotion ? 80 : 760)
+      markGateAccepted(ui, session)
+      setTimeout(() => revealWorld(session), reducedMotion ? 120 : 1900)
     }
   } catch {
     ui.gateNote.textContent = 'The gate is offline. The worlds remain sealed for now.'
