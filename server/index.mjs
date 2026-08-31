@@ -26,6 +26,12 @@ if (requireGuildMembership && !process.env.DISCORD_GUILD_ID) {
 
 const FileStore = sessionFileStore(session)
 
+function regenerateSession(req) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((error) => error ? reject(error) : resolve())
+  })
+}
+
 app.disable('x-powered-by')
 app.set('trust proxy', 1)
 app.use((req, res, next) => {
@@ -143,12 +149,14 @@ app.get('/auth/discord/callback', async (req, res) => {
       return
     }
 
+    const access = accessFromRoles(roles)
+    await regenerateSession(req)
     req.session.user = {
       id: user.id,
       username: user.global_name || user.username,
       avatarUrl: user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : undefined,
     }
-    req.session.access = accessFromRoles(roles)
+    req.session.access = access
     res.redirect('/?worthy=1')
   } catch (error) {
     console.error('Discord gate error:', error)
