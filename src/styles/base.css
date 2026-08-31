@@ -20,6 +20,8 @@ body {
   min-width: 320px;
   min-height: 100%;
   overflow-x: hidden;
+  -webkit-user-select: none;
+  user-select: none;
   background:
     radial-gradient(circle at 50% 16%, rgba(88, 49, 30, .18), transparent 25%),
     radial-gradient(circle at 50% 72%, rgba(57, 28, 17, .08), transparent 36%),
