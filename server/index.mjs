@@ -20,6 +20,9 @@ const sessionSecret = process.env.SESSION_SECRET || (isProduction ? '' : crypto.
 if (!sessionSecret) {
   throw new Error('SESSION_SECRET is required when NODE_ENV=production.')
 }
+if (requireGuildMembership && !process.env.DISCORD_GUILD_ID) {
+  throw new Error('DISCORD_GUILD_ID is required when REQUIRE_GUILD_MEMBERSHIP=true.')
+}
 
 const FileStore = sessionFileStore(session)
 
