@@ -2,19 +2,20 @@
 
 The front gate for the Howling Whispers ecosystem.
 
-## v0.2 prototype
+## v0.3 prototype
 
 The `dev` branch is the cinematic gated landing experience:
 
 - animated Howling Whispers wolf emblem with pointer-reactive metal highlight
 - celestial copper theme, pointer aura, drifting particles and ripple wake
 - real image-fragment shatter transition after successful authentication
-- Discord OAuth gate framed as **Prove Yourself Worthy**
+- Discord gate framed as **Prove Yourself Worthy**
+- shared Discord SSO with the existing Coda Admin authentication authority
 - hierarchical access seals for Stable, Closed Beta, Closed Alpha and Developer
 - post-auth world reveal with locked and unlocked project paths
 - responsive layout, reduced-motion support and safer DOM rendering
-- basic security headers, persistent file-backed sessions and a health endpoint
-- access-tier unit tests, TypeScript checks, production build and a runtime server smoke test
+- security headers, health endpoint and runtime server smoke test
+- access-tier and shared-SSO unit tests plus TypeScript checks and production build verification
 
 ## Local setup
 
@@ -26,9 +27,9 @@ npm run dev
 
 The Vite client runs on port `5173` and proxies `/api` and `/auth` to the Node gate server on port `8787`.
 
-### Preview the gate before Discord is configured
+### Preview the gate without SSO
 
-While Vite is running in development mode, these local-only preview seals can exercise the full wolf-shatter and world reveal without bypassing production authentication:
+While Vite is running in development mode, these local-only preview seals can exercise the full wolf-shatter and world reveal:
 
 - `http://localhost:5173/?preview=stable`
 - `http://localhost:5173/?preview=beta`
@@ -37,26 +38,32 @@ While Vite is running in development mode, these local-only preview seals can ex
 
 Vite compiles this preview path out of production behavior because it is guarded by `import.meta.env.DEV`.
 
-## Discord setup
+## Shared Discord SSO
 
-Create a Discord OAuth2 application and add this redirect while developing:
+HW Landing does not own a second Discord client secret or a second OAuth callback. It delegates sign-in to the existing Coda Admin Discord OAuth authority at `admin.thehowlingwhispers.com`.
 
-`http://localhost:8787/auth/discord/callback`
+The existing Coda session cookie is scoped to `.thehowlingwhispers.com`. After Coda authenticates the user, the browser returns to the apex landing site and HW Landing asks Coda server-to-server for the current signed-in identity, guild membership and that member's own Discord role IDs.
 
-Fill in `.env` with the client ID, client secret, guild ID and the Discord role IDs that unlock each access tier.
+This keeps the proven OAuth implementation, CSRF state handling and session store in one place.
 
-Never commit `.env`, the Discord client secret, or the session secret.
+Required production values:
+
+```env
+CODA_AUTH_BASE_URL=https://admin.thehowlingwhispers.com
+PUBLIC_BASE_URL=https://thehowlingwhispers.com
+CODA_COOKIE_DOMAIN=.thehowlingwhispers.com
+```
+
+Coda Admin must allow `https://thehowlingwhispers.com` in `CODA_OAUTH_RETURN_URLS` and expose `/api/coda/auth/landing`.
 
 ### Access hierarchy
 
-- **Stable**: every successfully authenticated Discord user
+- **Stable**: every authenticated member of the configured Howling Whispers Discord guild
 - **Closed Beta**: roles listed in `DISCORD_BETA_ROLE_IDS` or the legacy `DISCORD_EA_ROLE_IDS`
 - **Closed Alpha**: roles listed in `DISCORD_ALPHA_ROLE_IDS`; Alpha automatically inherits Beta access
 - **Developer**: roles listed in `DISCORD_DEV_ROLE_IDS`; Developer unlocks every project
 
-Set `REQUIRE_GUILD_MEMBERSHIP=true` if passing the gate should also require membership in `DISCORD_GUILD_ID`.
-
-Successful OAuth authentication regenerates the session before user/access data is stored.
+The landing server receives role IDs from Coda only after the shared session is validated. Discord secrets remain in Coda Admin.
 
 ## Production
 
@@ -68,7 +75,7 @@ NODE_ENV=production npm start
 
 `npm run check` performs typechecking, unit tests, server syntax validation, the Vite build and a real `/api/health` startup smoke test.
 
-`SESSION_SECRET` is mandatory in production. The Node server serves the built `dist` directory and handles Discord authentication.
+The Node server serves the built `dist` directory and brokers the landing session through Coda SSO. No landing-specific Discord client secret is required.
 
 The health endpoint is available at `/api/health` for deployment checks.
 
