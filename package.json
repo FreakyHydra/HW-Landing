@@ -1,19 +1,26 @@
 {
   "name": "hw-landing",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
   "scripts": {
     "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite",
     "dev:server": "node --watch server/index.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test",
     "build": "vite build",
+    "check": "npm run typecheck && npm test && node --check server/index.mjs && npm run build",
     "start": "node server/index.mjs"
   },
   "dependencies": {
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
-    "express-session": "^1.18.2"
+    "express-session": "^1.18.2",
+    "session-file-store": "^1.5.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
