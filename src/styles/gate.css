@@ -113,7 +113,7 @@
 .gate-copy {
   position: relative;
   z-index: 3;
-  margin-top: -44px;
+  margin-top: -22px;
   max-width: 690px;
   animation: copyEnter 1.05s 1.12s ease both;
 }
