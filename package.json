@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test",
     "build": "vite build",
-    "check": "npm run typecheck && npm test && node --check server/index.mjs && npm run build",
+    "smoke": "node scripts/smoke-server.mjs",
+    "check": "npm run typecheck && npm test && node --check server/index.mjs && npm run build && npm run smoke",
     "start": "node server/index.mjs"
   },
   "dependencies": {
