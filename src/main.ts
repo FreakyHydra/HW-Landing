@@ -5,6 +5,11 @@ import { markGateAccepted, mountUi, renderIdentity, renderProjects, showDeniedRe
 import type { AccessTier, Session } from './projects'
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+
+document.addEventListener('contextmenu', (event) => {
+  event.preventDefault()
+})
+
 const ui = mountUi()
 const field = createField(ui.field, ui.shatter, ui.aura, ui.sigil, reducedMotion)
 showDeniedReason(ui.gateNote)
