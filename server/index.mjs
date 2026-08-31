@@ -1,36 +1,23 @@
 import 'dotenv/config'
 import express from 'express'
-import session from 'express-session'
-import sessionFileStore from 'session-file-store'
 import path from 'node:path'
-import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
-import { accessFromRoles } from './access.mjs'
+import {
+  buildCodaLoginUrl,
+  clearSharedSessionCookie,
+  landingSessionFromCoda,
+  sharedSessionCookieHeader,
+} from './coda-sso.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
 const app = express()
 const port = Number(process.env.PORT || 8787)
 const isProduction = process.env.NODE_ENV === 'production'
-const requireGuildMembership = String(process.env.REQUIRE_GUILD_MEMBERSHIP || 'false').toLowerCase() === 'true'
-const discordRequired = ['DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'DISCORD_REDIRECT_URI']
-const authReady = discordRequired.every((key) => Boolean(process.env[key]))
-const sessionSecret = process.env.SESSION_SECRET || (isProduction ? '' : crypto.randomBytes(32).toString('hex'))
-
-if (!sessionSecret) {
-  throw new Error('SESSION_SECRET is required when NODE_ENV=production.')
-}
-if (requireGuildMembership && !process.env.DISCORD_GUILD_ID) {
-  throw new Error('DISCORD_GUILD_ID is required when REQUIRE_GUILD_MEMBERSHIP=true.')
-}
-
-const FileStore = sessionFileStore(session)
-
-function regenerateSession(req) {
-  return new Promise((resolve, reject) => {
-    req.session.regenerate((error) => error ? reject(error) : resolve())
-  })
-}
+const codaAuthBaseUrl = process.env.CODA_AUTH_BASE_URL || (isProduction ? 'https://admin.thehowlingwhispers.com' : '')
+const publicBaseUrl = process.env.PUBLIC_BASE_URL || (isProduction ? 'https://thehowlingwhispers.com' : '')
+const sharedCookieDomain = process.env.CODA_COOKIE_DOMAIN || (isProduction ? '.thehowlingwhispers.com' : '')
+const authReady = Boolean(codaAuthBaseUrl && publicBaseUrl)
 
 app.disable('x-powered-by')
 app.set('trust proxy', 1)
@@ -49,123 +36,63 @@ app.use((req, res, next) => {
   next()
 })
 
-app.use(session({
-  name: 'hw_gate',
-  store: new FileStore({
-    path: path.join(root, '.sessions'),
-    retries: 0,
-    logFn: () => {},
-  }),
-  secret: sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  rolling: true,
-  cookie: {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: isProduction,
-    maxAge: 1000 * 60 * 60 * 24 * 7,
-  },
-}))
-
 app.get('/api/health', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store')
-  res.json({ ok: true, authReady })
+  res.json({ ok: true, authReady, authSource: 'coda-sso' })
 })
 
-app.get('/api/session', (req, res) => {
+app.get('/api/session', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
-  res.json(req.session.user ? {
-    authenticated: true,
-    user: req.session.user,
-    access: req.session.access || ['stable'],
-  } : { authenticated: false })
-})
+  if (!authReady) return res.json({ authenticated: false })
 
-app.get('/auth/discord', (req, res) => {
-  if (!authReady) {
-    return res.status(503).send('Discord auth is not configured yet. Add the required environment variables.')
-  }
+  const cookie = sharedSessionCookieHeader(req.headers.cookie || '')
+  if (!cookie) return res.json({ authenticated: false })
 
-  const state = crypto.randomBytes(24).toString('hex')
-  req.session.oauthState = state
-
-  const params = new URLSearchParams({
-    client_id: process.env.DISCORD_CLIENT_ID,
-    redirect_uri: process.env.DISCORD_REDIRECT_URI,
-    response_type: 'code',
-    scope: 'identify guilds.members.read',
-    state,
-  })
-  res.redirect(`https://discord.com/oauth2/authorize?${params}`)
-})
-
-app.get('/auth/discord/callback', async (req, res) => {
   try {
-    const { code, state } = req.query
-    if (!code || !state || state !== req.session.oauthState) {
-      return res.redirect('/?denied=auth')
-    }
-    delete req.session.oauthState
-
-    const tokenBody = new URLSearchParams({
-      client_id: process.env.DISCORD_CLIENT_ID,
-      client_secret: process.env.DISCORD_CLIENT_SECRET,
-      grant_type: 'authorization_code',
-      code: String(code),
-      redirect_uri: process.env.DISCORD_REDIRECT_URI,
+    const response = await fetch(new URL('/api/coda/auth/landing', codaAuthBaseUrl), {
+      headers: { Cookie: cookie, Accept: 'application/json' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(5000),
     })
-
-    const tokenRes = await fetch('https://discord.com/api/v10/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: tokenBody,
-    })
-    if (!tokenRes.ok) throw new Error(`Token exchange failed: ${tokenRes.status}`)
-    const token = await tokenRes.json()
-
-    const userRes = await fetch('https://discord.com/api/v10/users/@me', {
-      headers: { Authorization: `Bearer ${token.access_token}` },
-    })
-    if (!userRes.ok) throw new Error(`User lookup failed: ${userRes.status}`)
-    const user = await userRes.json()
-
-    let roles = []
-    let guildMember = false
-    const guildId = process.env.DISCORD_GUILD_ID
-    if (guildId) {
-      const memberRes = await fetch(`https://discord.com/api/v10/users/@me/guilds/${guildId}/member`, {
-        headers: { Authorization: `Bearer ${token.access_token}` },
-      })
-      guildMember = memberRes.ok
-      if (memberRes.ok) {
-        const member = await memberRes.json()
-        roles = Array.isArray(member.roles) ? member.roles : []
-      }
-    }
-
-    if (requireGuildMembership && guildId && !guildMember) {
-      req.session.destroy(() => res.redirect('/?denied=not-member'))
-      return
-    }
-
-    const access = accessFromRoles(roles)
-    await regenerateSession(req)
-    req.session.user = {
-      id: user.id,
-      username: user.global_name || user.username,
-      avatarUrl: user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : undefined,
-    }
-    req.session.access = access
-    res.redirect('/?worthy=1')
+    if (!response.ok) return res.status(502).json({ authenticated: false })
+    const payload = await response.json()
+    res.json(landingSessionFromCoda(payload))
   } catch (error) {
-    console.error('Discord gate error:', error)
-    res.redirect('/?denied=auth')
+    console.error('Coda SSO identity lookup failed:', error)
+    res.status(502).json({ authenticated: false })
   }
 })
 
-app.get('/auth/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/'))
+app.get('/auth/discord', (_req, res) => {
+  if (!authReady) {
+    return res.status(503).send('Shared Discord authentication is not configured yet.')
+  }
+
+  const returnTo = new URL('/', publicBaseUrl)
+  returnTo.searchParams.set('worthy', '1')
+  res.redirect(buildCodaLoginUrl(codaAuthBaseUrl, returnTo.toString()))
+})
+
+app.get('/auth/logout', async (req, res) => {
+  const cookie = sharedSessionCookieHeader(req.headers.cookie || '')
+  if (authReady && cookie) {
+    try {
+      await fetch(new URL('/api/coda/auth/logout', codaAuthBaseUrl), {
+        method: 'POST',
+        headers: { Cookie: cookie, Accept: 'application/json' },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(5000),
+      })
+    } catch (error) {
+      console.error('Coda SSO logout cleanup failed:', error)
+    }
+  }
+
+  res.setHeader('Set-Cookie', clearSharedSessionCookie({
+    secure: isProduction,
+    domain: sharedCookieDomain,
+  }))
+  res.redirect('/')
 })
 
 const dist = path.join(root, 'dist')
@@ -183,5 +110,5 @@ app.use((req, res, next) => {
 
 app.listen(port, () => {
   console.log(`HW Landing gate listening on http://localhost:${port}`)
-  if (!authReady) console.log('Discord auth is not configured. See .env.example.')
+  if (!authReady) console.log('Shared Coda SSO is not configured. See .env.example.')
 })
