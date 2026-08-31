@@ -5,6 +5,10 @@ export type UiRefs = {
   shatter: HTMLCanvasElement
   aura: HTMLElement
   gate: HTMLElement
+  gateEyebrow: HTMLElement
+  gateTitle: HTMLElement
+  gateMessage: HTMLElement
+  gateAction: HTMLAnchorElement
   gateNote: HTMLElement
   world: HTMLElement
   sigil: HTMLAnchorElement
@@ -31,10 +35,10 @@ export function mountUi(): UiRefs {
           <img id="sigil-image" src="/hw-logo.png" alt="The Howling Whispers wolf and moon emblem" />
         </a>
         <div class="gate-copy">
-          <p class="eyebrow">THE HOWLING WHISPERS</p>
+          <p class="eyebrow" id="gate-eyebrow">THE HOWLING WHISPERS</p>
           <h1 id="gate-title">Prove Yourself Worthy</h1>
-          <p>The gate opens through Discord. Your seal decides how deep into the worlds you may travel.</p>
-          <a class="discord-button" href="/auth/discord">PROVE YOUR WORTH</a>
+          <p id="gate-message">The gate opens through Discord. Your seal decides how deep into the worlds you may travel.</p>
+          <a class="discord-button" id="gate-action" href="/auth/discord">PROVE YOUR WORTH</a>
           <span class="gate-note" id="gate-note">Discord identifies your access seal. Nothing more.</span>
         </div>
       </section>
@@ -77,6 +81,10 @@ export function mountUi(): UiRefs {
     shatter: document.querySelector<HTMLCanvasElement>('#shatter')!,
     aura: document.querySelector<HTMLElement>('.cursor-aura')!,
     gate: document.querySelector<HTMLElement>('#gate')!,
+    gateEyebrow: document.querySelector<HTMLElement>('#gate-eyebrow')!,
+    gateTitle: document.querySelector<HTMLElement>('#gate-title')!,
+    gateMessage: document.querySelector<HTMLElement>('#gate-message')!,
+    gateAction: document.querySelector<HTMLAnchorElement>('#gate-action')!,
     gateNote: document.querySelector<HTMLElement>('#gate-note')!,
     world: document.querySelector<HTMLElement>('#world')!,
     sigil: document.querySelector<HTMLAnchorElement>('#sigil')!,
@@ -84,6 +92,19 @@ export function mountUi(): UiRefs {
     identity: document.querySelector<HTMLElement>('#identity')!,
     projectGrid: document.querySelector<HTMLElement>('#projects')!,
   }
+}
+
+export function markGateAccepted(ui: UiRefs, session: Session) {
+  ui.gate.classList.add('gate-accepted')
+  ui.gateEyebrow.textContent = 'THE GATE RECOGNIZES YOUR SEAL'
+  ui.gateTitle.textContent = 'Worth Proven'
+  ui.gateMessage.textContent = session.user
+    ? `${session.user.username}, the paths beyond the seal are opening.`
+    : 'The paths beyond the seal are opening.'
+  ui.gateAction.textContent = 'THE GATE OPENS'
+  ui.gateAction.removeAttribute('href')
+  ui.gateAction.setAttribute('aria-disabled', 'true')
+  ui.gateNote.textContent = 'Stand ready.'
 }
 
 function hasAccess(access: Set<AccessTier>, tier: Project['access']) {
