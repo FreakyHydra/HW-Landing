@@ -51,6 +51,7 @@
   border-radius: 50%;
   pointer-events: none;
   transform-origin: center;
+  transition: opacity .4s ease, border-color .4s ease;
 }
 .orbit-a { width: min(720px, 91vw); aspect-ratio: 1; animation: orbitA 23s linear infinite; }
 .orbit-b { width: min(545px, 74vw); aspect-ratio: 1; animation: orbitB 31s linear infinite reverse; }
@@ -66,6 +67,7 @@
   background: repeating-conic-gradient(from 7deg, rgba(211,151,98,.26) 0 1deg, transparent 1deg 12deg);
   mask: radial-gradient(transparent 0 73%, #000 73.2% 74%, transparent 74.2%);
   animation: rotateMarks 48s linear infinite;
+  transition: opacity .4s ease;
 }
 .sigil {
   --rx: 0deg;
@@ -78,7 +80,7 @@
   width: min(370px, 70vw);
   aspect-ratio: 1;
   transform: perspective(1000px) rotateX(var(--rx)) rotateY(var(--ry));
-  transition: transform .18s ease, filter .3s ease;
+  transition: transform .18s ease, filter .4s ease;
   animation: sigilEnter 1.7s cubic-bezier(.16,.8,.22,1) both;
 }
 .sigil::before,
@@ -113,7 +115,7 @@
   z-index: 3;
   margin-top: -44px;
   max-width: 690px;
-  animation: copyEnter 1.1s .65s ease both;
+  animation: copyEnter 1.05s 1.12s ease both;
 }
 h1 { margin: 0; font-size: clamp(2.8rem, 7vw, 5.9rem); line-height: .92; text-wrap: balance; }
 .gate-copy > p:not(.eyebrow) {
@@ -137,7 +139,7 @@ h1 { margin: 0; font-size: clamp(2.8rem, 7vw, 5.9rem); line-height: .92; text-wr
   color: #faeadb;
   position: relative;
   overflow: hidden;
-  transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease, opacity .25s ease;
 }
 .discord-button::before {
   content: "";
@@ -154,8 +156,15 @@ h1 { margin: 0; font-size: clamp(2.8rem, 7vw, 5.9rem); line-height: .92; text-wr
   background: rgba(145,86,48,.25);
   box-shadow: 0 10px 32px rgba(0,0,0,.24), 0 0 22px rgba(198,125,72,.09);
 }
+.discord-button[aria-disabled="true"] { pointer-events: none; opacity: .66; }
 .gate-note { display: block; margin-top: 14px; color: #6f625a; font-size: .74rem; letter-spacing: .045em; }
 .gate-note.warning { color: #c18a62; }
+.gate-accepted .sigil { filter: brightness(1.13) drop-shadow(0 0 38px rgba(222,158,101,.34)); }
+.gate-accepted .sigil::before { animation-duration: 1.15s; background: radial-gradient(circle, rgba(222,153,94,.22), transparent 67%); }
+.gate-accepted .orbit { opacity: .58; border-color: rgba(226,168,114,.27); }
+.gate-accepted .orbit-a { animation-duration: 6.4s; }
+.gate-accepted .orbit-b { animation-duration: 8.2s; }
+.gate-accepted .orbit-marks { opacity: .72; animation-duration: 10s; }
 .gate-shattering .gate-copy,
 .gate-shattering .orbit,
 .gate-shattering .orbit-marks,
