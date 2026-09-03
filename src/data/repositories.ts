@@ -1,6 +1,7 @@
 import type { CharacterRecord } from '../domain/character-record'
 import type { Persona } from '../domain/persona'
 import { normalizeWorldRecord, type WorldRecord } from '../domain/world.ts'
+import { createSkylerBitterrootPersona, SKYLER_BITTERROOT_PERSONA_ID } from './builtin-personas.ts'
 
 export interface CharacterRepository {
   list(): Promise<CharacterRecord[]>
@@ -51,7 +52,7 @@ class LocalRepository<T extends { id: string }> extends MemoryRepository<T> {
       localStorage.removeItem(storageKey)
     }
   }
-  private persist() { localStorage.setItem(this.storageKey, JSON.stringify([...this.records.values()])) }
+  protected persist() { localStorage.setItem(this.storageKey, JSON.stringify([...this.records.values()])) }
   override async save(item: T) { await super.save(item); this.persist() }
   override async remove(id: string) { await super.remove(id); this.persist() }
 }
@@ -61,7 +62,13 @@ export class LocalCharacterRepository extends LocalRepository<CharacterRecord> i
 }
 
 export class LocalPersonaRepository extends LocalRepository<Persona> implements PersonaRepository {
-  constructor() { super('hw.forge.personas.v1') }
+  constructor() {
+    super('hw.forge.personas.v1')
+    if (!this.records.has(SKYLER_BITTERROOT_PERSONA_ID)) {
+      this.records.set(SKYLER_BITTERROOT_PERSONA_ID, createSkylerBitterrootPersona())
+      this.persist()
+    }
+  }
 }
 
 export class LocalWorldRepository extends LocalRepository<WorldRecord> implements WorldRepository {
