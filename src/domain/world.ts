@@ -20,10 +20,12 @@ export type WorldLore = {
 }
 
 export type WorldSpecies = { id: string; name: string; description: string }
+export const locationKinds = ['continent', 'major region', 'region', 'subregion', 'territory', 'settlement', 'town', 'village', 'district', 'wilderness', 'building', 'landmark', 'road or trail', 'river', 'lake', 'sea or ocean', 'other'] as const
+export type WorldLocationKind = typeof locationKinds[number]
 export type WorldLocation = {
   id: string
   name: string
-  kind: 'region' | 'town' | 'building' | 'landmark' | 'other'
+  kind: WorldLocationKind
   parentLocationId?: string
   description: string
 }
