@@ -22,13 +22,15 @@ export function compileWorldImpersonationPrompt(input: {
 }): string {
   const { world, session, persona, inhabitants } = input
   const location = world.locations.find((item) => item.id === session.currentLocationId)
-  return `Write exactly one plausible next PLAYER turn for an ongoing roleplay in ${world.identity.name}.
+  return `Continue the ongoing roleplay by writing one natural PLAYER turn for ${world.identity.name}.
 
-You are writing only the player's side. Do not write any NPC response, narrator response, consequence, or follow-up after the player's turn.
-Preserve the player's established voice, vocabulary, simplicity, slang, rhythm, and level of detail. Do not make the player more literary, formal, emotionally articulate, or knowledgeable than their established persona and recent turns support.
-The turn may contain dialogue, action, or both. Return plain text only. No Player: label. No markdown wrappers. No analysis. No notes. No Emotion: or metadata.
-Do not invent decisions beyond what is needed for one coherent next turn. Do not force trust, romance, aggression, fear, or other intent unless recent continuity or the optional direction clearly supports it.
-Keep knowledge limited to what the player could know from persona, recent continuity, and visible world context.
+PLAYER-TURN FORMAT
+- Write only what the player says and/or does in this one turn.
+- Keep the player's established voice, vocabulary, slang, rhythm, confidence, and level of detail.
+- The player may speak, gesture, move, touch, hesitate, joke, show ordinary affection, or otherwise act naturally when supported by the persona and scene.
+- Do not add an NPC reply or narrate what happens after the player's action. The world runtime will generate that separately.
+- Do not invent extra intentions, knowledge, or emotional certainty beyond what the persona, recent continuity, or optional direction supports.
+- Return only the playable turn itself. No labels, instructions, notes, analysis, policy text, or generation commentary.
 
 WORLD
 ${world.identity.name}: ${world.identity.description}
@@ -37,15 +39,22 @@ Current place: ${location ? `${location.name}: ${location.description}` : 'Not e
 Locally relevant inhabitants: ${inhabitants.map((item) => item.name).join(', ') || 'none named'}
 
 PLAYER PERSONA
-${persona ? `Name: ${persona.name}\nPronouns: ${persona.pronouns}\nDescription: ${persona.description}\nAppearance: ${persona.appearance}\nPersonality: ${persona.personality}\nBackground: ${persona.background}\nNotes: ${persona.notes}` : 'No persona is selected. Infer only from recent player turns and do not invent a fixed identity.'}
+${persona ? `Name: ${persona.name}\nPronouns: ${persona.pronouns}\nDescription: ${persona.description}\nAppearance: ${persona.appearance}\nPersonality: ${persona.personality}\nBackground: ${persona.background}\nNotes: ${persona.notes}` : 'No persona is selected. Infer only from recent player turns and avoid inventing a fixed identity.'}
 
 RECENT CONTINUITY
 ${continuity(session) || 'No prior turns yet.'}
 
 OPTIONAL PLAYER DIRECTION
-${input.direction?.trim() || 'No special direction. Continue naturally from the current situation.'}
+${input.direction?.trim() || 'Continue naturally from the current situation.'}
 
-Write one player turn only.`
+Output the player's turn now.`
+}
+
+function stripLeakedImpersonationDirective(text: string): string {
+  const lines = text.split(/\r?\n/)
+  const directive = /^(?:do not|don't|only write|write only|return only|stop before|do not finish|do not continue|the world runtime|npc response|narrator response|player-turn format|instructions?\b)/i
+  while (lines.length && directive.test(lines[0].trim())) lines.shift()
+  return lines.join('\n').trim()
 }
 
 export function cleanImpersonatedPlayerTurn(raw: string, characterNames: string[] = []): string {
@@ -56,6 +65,7 @@ export function cleanImpersonatedPlayerTurn(raw: string, characterNames: string[
   text = text.replace(/^\s*```(?:text|markdown)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
   text = text.replace(/^\s*(?:player user message|player message|user message|player|user)\s*[:：]\s*/i, '').trim()
   text = text.replace(/<\s*\|?(?:user|player|system|assistant)\|?\s*>/gi, '').trim()
+  text = stripLeakedImpersonationDirective(text)
   const labels = characterNames.filter(Boolean).map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   if (labels.length) {
     const npcStart = new RegExp(`(?:^|\\n)\\s*(?:${labels.join('|')}|Narrator)\\s*:\\s*`, 'i')
