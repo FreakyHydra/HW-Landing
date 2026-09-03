@@ -1,3 +1,4 @@
+import '../styles/world-runtime.css'
 import type { AppContext, Navigate } from '../app/router.ts'
 import { escapeHtml } from '../app/html.ts'
 
