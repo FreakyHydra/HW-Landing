@@ -3,6 +3,7 @@ import { renderCharacterEditor } from '../views/character-editor'
 import { renderCharacterLibrary } from '../views/character-library'
 import { renderForge } from '../views/forge'
 import { renderHome } from '../views/home'
+import { renderImageStudio } from '../views/image-studio'
 import { renderPersonas } from '../views/personas'
 import { renderPlaceholder } from '../views/placeholders'
 import { renderWorldEditor } from '../views/world-editor'
@@ -37,6 +38,7 @@ export class AppRouter {
     const navigate = (next: string) => this.navigate(next)
     if (path === '/') await renderHome(this.root)
     else if (path === '/forge/' || path === '/forge') await renderForge(this.root, this.context)
+    else if (path === '/forge/images/' || path === '/forge/images') await renderImageStudio(this.root, this.context)
     else if (path === '/forge/characters/' || path === '/forge/characters') await renderCharacterLibrary(this.root, this.context, navigate)
     else if (path === '/forge/characters/create/' || path === '/forge/characters/create') {
       const worldId = new URLSearchParams(location.search).get('world') || undefined
