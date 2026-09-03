@@ -3,7 +3,8 @@ import type { AppContext, Navigate } from '../app/router.ts'
 import { escapeHtml } from '../app/html.ts'
 import { cleanWorldRuntimeReply, WorldRuntimeNovelAiProvider, WORLD_RUNTIME_NAI_MODELS, type WorldRuntimeNovelAiModel } from '../runtime/novelai.ts'
 import { clearNovelAiToken, getNovelAiRuntimeSettings, saveNovelAiRuntimeSettings } from '../runtime/novelai-settings.ts'
-import { LocalRelationshipRepository, DEFAULT_PERSONA_ID, evaluateRelationshipTurn } from '../runtime/relationship-v2.ts'
+import { LocalRelationshipRepository, DEFAULT_PERSONA_ID, evaluateRelationshipTurn, relationshipTier, type RelationshipRecord } from '../runtime/relationship-v2.ts'
+import { getRoleplayTextColors } from '../runtime/roleplay-visual-settings.ts'
 import { compileWorldRuntimePrompt, LocalWorldRuntimeSessionRepository, resolveRuntimeInhabitants, type RuntimeInhabitant, type WorldRuntimeMessage, type WorldRuntimeSession } from '../runtime/world-brain.ts'
 import { cleanImpersonatedPlayerTurn, compileWorldImpersonationPrompt, removeRelationshipTurn } from '../runtime/world-turn-tools.ts'
 
@@ -21,6 +22,56 @@ function directlyAddressedInhabitants(value: string, inhabitants: RuntimeInhabit
     if (!first || firstNameCounts.get(first) !== 1) return false
     return new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(lower)
   })
+}
+
+function appendColoredText(target: HTMLElement, text: string): void {
+  const colors = getRoleplayTextColors()
+  const pattern = /(\*\*[^*\n]+\*\*|\*[^*\n]+\*|“[^”\n]+”|"[^"\n]+")/g
+  let cursor = 0
+  for (const match of text.matchAll(pattern)) {
+    const index = match.index ?? 0
+    if (index > cursor) {
+      const narration = document.createElement('span')
+      narration.className = 'world-runtime-narration'
+      narration.style.color = colors.narration
+      narration.textContent = text.slice(cursor, index)
+      target.append(narration)
+    }
+    const token = match[0]
+    const span = document.createElement('span')
+    if (token.startsWith('**')) {
+      span.className = 'world-runtime-dialogue'
+      span.style.color = colors.dialogue
+      span.textContent = token.slice(2, -2)
+    } else if (token.startsWith('*')) {
+      span.className = 'world-runtime-action'
+      span.style.color = colors.action
+      span.textContent = token.slice(1, -1)
+    } else {
+      span.className = 'world-runtime-dialogue'
+      span.style.color = colors.dialogue
+      span.textContent = token
+    }
+    target.append(span)
+    cursor = index + token.length
+  }
+  if (cursor < text.length) {
+    const narration = document.createElement('span')
+    narration.className = 'world-runtime-narration'
+    narration.style.color = colors.narration
+    narration.textContent = text.slice(cursor)
+    target.append(narration)
+  }
+}
+
+function relationshipMetric(record: RelationshipRecord | undefined, key: 'trust' | 'respect'): number {
+  return Math.max(0, Math.min(100, (record?.dimensions[key] ?? 0) + 50))
+}
+
+function relationshipTension(record: RelationshipRecord | undefined): number {
+  const dimensions = record?.dimensions
+  if (!dimensions) return 0
+  return Math.max(0, Math.min(100, Math.max(dimensions.fear, dimensions.suspicion, dimensions.resentment)))
 }
 
 export async function renderWorldRuntime(root: HTMLElement, context: AppContext, navigate: Navigate, id: string): Promise<void> {
@@ -58,6 +109,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       <canvas class="world-runtime-particles" aria-hidden="true"></canvas>
       <div class="world-runtime-atmosphere" aria-hidden="true"></div>
       <div class="world-runtime-identity" aria-hidden="true"><span>${escapeHtml(world.identity.name)}</span></div>
+      <aside class="world-runtime-rs" aria-label="Relationship status"></aside>
       <section class="world-runtime-story" aria-live="polite" aria-label="World narrative"></section>
       <form class="world-runtime-prompt" autocomplete="off">
         <span class="world-runtime-prompt-mark">›</span>
@@ -70,6 +122,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
 
   const runtime = root.querySelector<HTMLElement>('.world-runtime')!
   const story = root.querySelector<HTMLElement>('.world-runtime-story')!
+  const rsPanel = root.querySelector<HTMLElement>('.world-runtime-rs')!
   const canvas = root.querySelector<HTMLCanvasElement>('.world-runtime-particles')!
   const input = root.querySelector<HTMLTextAreaElement>('.world-runtime-prompt textarea')!
   const form = root.querySelector<HTMLFormElement>('.world-runtime-prompt')!
@@ -90,13 +143,31 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
     input.disabled = value
   }
 
+  function renderRelationshipVisuals(): void {
+    const personaId = persona?.id || DEFAULT_PERSONA_ID
+    const visible = inhabitants.slice(0, 3)
+    if (!visible.length) {
+      rsPanel.hidden = true
+      return
+    }
+    rsPanel.hidden = false
+    rsPanel.innerHTML = `<header><span>RELATIONSHIPS</span><small>RS</small></header>${visible.map((inhabitant) => {
+      const record = relationshipRepository.get(inhabitant.id, personaId)
+      const trust = relationshipMetric(record, 'trust')
+      const respect = relationshipMetric(record, 'respect')
+      const tension = relationshipTension(record)
+      return `<section class="world-runtime-rs-character"><div class="world-runtime-rs-name"><strong>${escapeHtml(inhabitant.name)}</strong><span>${escapeHtml(relationshipTier(record?.score ?? 0))}</span></div><div class="world-runtime-rs-row"><span>Trust</span><i><b style="width:${trust}%"></b></i><em>${Math.round(trust)}</em></div><div class="world-runtime-rs-row"><span>Tension</span><i><b style="width:${tension}%"></b></i><em>${Math.round(tension)}</em></div><div class="world-runtime-rs-row"><span>Respect</span><i><b style="width:${respect}%"></b></i><em>${Math.round(respect)}</em></div></section>`
+    }).join('')}`
+  }
+
   function messageElement(message: WorldRuntimeMessage): HTMLElement {
     const article = document.createElement('article')
     article.className = `world-runtime-message ${message.sender}`
     article.dataset.messageId = message.id
     const body = document.createElement('div')
     body.className = 'world-runtime-message-body'
-    body.textContent = message.text
+    if (message.sender === 'world') appendColoredText(body, message.text)
+    else body.textContent = message.text
     article.append(body)
     if (message.sender === 'player' || message.sender === 'world') {
       const actions = document.createElement('div')
@@ -130,6 +201,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
 
   const appendSystem = (text: string) => appendMessage({ id: crypto.randomUUID(), sender: 'system', text, createdAt: new Date().toISOString() }, false)
   renderStory()
+  renderRelationshipVisuals()
   if (freshSession) appendSystem('New world session started. World canon and relationship state were kept.')
 
   function turnInhabitantsFor(value: string): RuntimeInhabitant[] {
@@ -173,6 +245,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
         turnId: playerMessage.id,
       }))
     }
+    renderRelationshipVisuals()
   }
 
   async function impersonate(direction = '', baseSession: WorldRuntimeSession = session): Promise<string> {
@@ -199,6 +272,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
     const playerMessage = session.history[playerIndex]
     removeRelationshipTurn(playerMessage.id)
     saveSessionHistory(session.history.slice(0, worldIndex))
+    renderRelationshipVisuals()
     setBusy(true)
     try { await generateWorldReply(playerMessage) }
     catch (error) { appendSystem(error instanceof Error ? error.message : 'Could not reroll the world response.') }
@@ -212,6 +286,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
     const baseHistory = session.history.slice(0, playerIndex)
     const baseSession: WorldRuntimeSession = { ...session, history: baseHistory }
     removeRelationshipTurn(original.id)
+    renderRelationshipVisuals()
     setBusy(true)
     try {
       const replacement = await impersonate(`Write a fresh alternative to the previous player turn without copying its wording. Preserve the same broad situation and player persona. Previous turn: ${original.text}`, baseSession)
