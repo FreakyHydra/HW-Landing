@@ -16,6 +16,7 @@ export type Project = {
 }
 
 const appUrl = import.meta.env.VITE_HW_APP_URL || '/hwrpv2/'
+const eveCorpUrl = import.meta.env.VITE_EVE_CORP_URL || '/eve/lightyear-apart/'
 
 export const projects: Project[] = [
   {
@@ -30,7 +31,8 @@ export const projects: Project[] = [
     title: 'Lightyear Apart',
     stage: 'STABLE',
     realm: 'EVE ONLINE',
-    desc: 'EVE Online corporation portal placeholder. Corporation tools and member access will be wired here later.',
+    desc: 'Enter the Lightyear Apart corporation area.',
+    href: eveCorpUrl,
     access: 'stable',
   },
   {
