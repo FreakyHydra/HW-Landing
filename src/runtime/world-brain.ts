@@ -245,6 +245,10 @@ Continue naturally as finished prose only. No labels. No brackets. No unsupporte
 export class LocalWorldRuntimeSessionRepository {
   private key(worldId: string): string { return `hw.runtime.world.${worldId}.v1` }
 
+  has(worldId: string): boolean {
+    return localStorage.getItem(this.key(worldId)) !== null
+  }
+
   get(worldId: string): WorldRuntimeSession | undefined {
     try {
       const value = localStorage.getItem(this.key(worldId))
@@ -254,6 +258,10 @@ export class LocalWorldRuntimeSessionRepository {
 
   save(session: WorldRuntimeSession): void {
     localStorage.setItem(this.key(session.worldId), JSON.stringify(session))
+  }
+
+  clear(worldId: string): void {
+    localStorage.removeItem(this.key(worldId))
   }
 
   create(world: WorldRecord, now = new Date().toISOString()): WorldRuntimeSession {
@@ -266,5 +274,10 @@ export class LocalWorldRuntimeSessionRepository {
     }
     this.save(session)
     return session
+  }
+
+  reset(world: WorldRecord, now = new Date().toISOString()): WorldRuntimeSession {
+    this.clear(world.id)
+    return this.create(world, now)
   }
 }
