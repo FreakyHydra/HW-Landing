@@ -150,21 +150,21 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       return true
     }
     if (lower === '/nai clear') {
-      sessionStorage.removeItem(TOKEN_KEY)
-      appendSystem('NovelAI session token cleared.')
+      localStorage.removeItem(TOKEN_KEY)
+      appendSystem('NovelAI token removed from this device.')
       return true
     }
     if (lower.startsWith('/nai token ')) {
       const token = command.slice('/nai token '.length).trim()
       if (!token) appendSystem('Usage: /nai token YOUR_PERSISTENT_TOKEN')
-      else { sessionStorage.setItem(TOKEN_KEY, token); appendSystem('NovelAI token set for this browser session only.') }
+      else { localStorage.setItem(TOKEN_KEY, token); appendSystem('NovelAI token saved on this device.') }
       return true
     }
     if (lower.startsWith('/nai model ')) {
       const model = lower.slice('/nai model '.length).trim()
       if (WORLD_RUNTIME_NAI_MODELS.includes(model as WorldRuntimeNovelAiModel)) {
-        sessionStorage.setItem(MODEL_KEY, model)
-        appendSystem(`NovelAI model: ${model}`)
+        localStorage.setItem(MODEL_KEY, model)
+        appendSystem(`NovelAI model saved on this device: ${model}`)
       } else appendSystem(`Available models: ${WORLD_RUNTIME_NAI_MODELS.join(', ')}`)
       return true
     }
@@ -194,9 +194,9 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       const personaId = persona?.id || DEFAULT_PERSONA_ID
       const relationshipMap = Object.fromEntries(inhabitants.map((inhabitant) => [inhabitant.id, relationshipRepository.get(inhabitant.id, personaId)]))
       const prompt = compileWorldRuntimePrompt({ world, session, playerTurn: value, inhabitants, persona, relationships: relationshipMap })
-      const storedModel = sessionStorage.getItem(MODEL_KEY)
+      const storedModel = localStorage.getItem(MODEL_KEY)
       const model = WORLD_RUNTIME_NAI_MODELS.includes(storedModel as WorldRuntimeNovelAiModel) ? storedModel as WorldRuntimeNovelAiModel : 'xialong-v1'
-      const reply = await provider.generate({ prompt, model }, sessionStorage.getItem(TOKEN_KEY) || '')
+      const reply = await provider.generate({ prompt, model }, localStorage.getItem(TOKEN_KEY) || '')
       const worldMessage: WorldRuntimeMessage = { id: crypto.randomUUID(), sender: 'world', text: reply, createdAt: new Date().toISOString() }
       appendMessage(worldMessage)
 
