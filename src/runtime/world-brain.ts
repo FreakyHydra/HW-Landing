@@ -136,6 +136,19 @@ function continuityText(session: WorldRuntimeSession): string {
   }).filter(Boolean).join('\n\n')
 }
 
+function sandboxProsePolicy(): string {
+  return `PROSE QUALITY POLICY
+- Write polished fiction with precise vocabulary, varied sentence structure, controlled description, natural scene rhythm, subtext, and character-specific dialogue.
+- Character voice is authoritative. Preserve each character's vocabulary, education, dialect, slang, rhythm, temperament, and established speech habits. Do not homogenize voices.
+- Do not reduce characters to stereotypes based on role, species, occupation, traits, or archetype.
+- Prefer concrete detail, natural progression, individual voices, meaningful dialogue, and implication over explanation.
+- Avoid generic AI filler, canned emotional shorthand, repetitive sentence structures, excessive summarization, obvious emotional over-explanation, forced slang, stock sensory reactions, meta commentary, moral summaries, and thematic closing summaries.
+- Show emotion through dialogue, posture, timing, choices, hesitation, and behavior. Never append labels such as Emotion:, Mood:, State:, Thoughts:, or Relationship:.
+- Keep knowledge limited. A character knows only what they witnessed, were told, discovered, remember, or can reasonably infer.
+- Preserve established history, relationships, injuries, possessions, promises, unfinished events, and current mood. Do not reset familiarity or repeat introductions without cause.
+- Characters remain autonomous. They may hesitate, disagree, conceal information, misunderstand, make mistakes, refuse, or pursue their own goals.`
+}
+
 export function compileWorldRuntimePrompt(input: {
   world: WorldRecord
   session: WorldRuntimeSession
@@ -176,19 +189,22 @@ Never output speaker labels such as "Ragna Holt:", "Pip Holt:", "Narrator:", "Pl
 Never use square brackets for actions.
 Never produce screenplay, chat transcript, RPG log, cast list, metadata, or stage directions.
 Write narration as ordinary prose and dialogue inside quotation marks.
-Do not continue, rewrite, or invent the player's dialogue or actions.
-Do not output hidden reasoning, analysis, think tags, instructions, or commentary about the generation.
+Treat the player's latest input as already completed. Do not restate it, paraphrase it, narrate it back, or complete it for them.
+Never begin by saying the player moves, walks, looks, feels, notices, decides, reaches, follows, turns, approaches, or otherwise performs the action they just supplied.
+Never decide the player's dialogue, thoughts, feelings, intentions, reactions, perceptions, or future actions.
+Do not output hidden reasoning, analysis, think tags, instructions, generation notes, control text, or commentary about the generation.
+
+${sandboxProsePolicy()}
 
 CORE RUNTIME RULES
 - Continue the world as an ongoing reality. There is no mandatory scene and no mandatory primary character.
-- Never decide the player's actions, speech, thoughts, feelings, intentions, or perceptions for them.
 - The inhabitant list is a list of people who could plausibly matter here. It does NOT mean they are automatically standing beside the player. Do not materialize everyone just because they are listed.
 - A short casual player line should normally receive a short natural answer. Default to 1-3 paragraphs and roughly 60-180 words unless the action genuinely needs more.
 - Multiple inhabitants may participate when the situation warrants it, but do not force everyone to speak.
 - Preserve each inhabitant's personality, knowledge, authority, family ties, boundaries, memories, and relationship state independently.
 - The world exists even when no named inhabitant is present. Silence, ordinary activity, distance, weather, work, wildlife, and environment are valid responses.
 - Do not invent new named NPCs, families, settlements, rivers, landmarks, factions, roads, clans, passes, mountains, or geographic features.
-- Do not invent specific geography, buildings, occupations, family facts, local history, trade routes, landmarks, or destinations merely to enrich the prose.
+- Do not invent specific geography, buildings, occupations, family facts, local history, trade routes, landmarks, destinations, equipment, scars, clothing details, insignia, or physical traits merely to enrich the prose unless they are supplied by canon.
 - Unnamed background people may exist when ordinary life requires them, but keep them generic until canon gives them a name.
 - Never invent modern technology that contradicts the world rules.
 - Treat supplied canon as fact. Do not overwrite it merely to make a scene easier.
@@ -239,7 +255,7 @@ ${history || 'This is the beginning of this world session.'}
 CURRENT PLAYER INPUT
 ${playerTurn}
 
-Continue naturally as finished prose only. No labels. No brackets. No unsupported names.`
+The player's input above has already happened. Begin with what the world or its inhabitants do next. Continue naturally as finished prose only. No labels. No brackets. No metadata. No unsupported names or details.`
 }
 
 export class LocalWorldRuntimeSessionRepository {
