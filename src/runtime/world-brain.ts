@@ -128,6 +128,14 @@ function relationshipText(inhabitant: RuntimeInhabitant, relationship?: Relation
   return `${inhabitant.name}: ${relationshipTier(relationship.score)} (${relationship.score}).${significant.length ? ` Dimensions: ${significant.join(', ')}.` : ''}${aftereffects.length ? ` Recent relational aftereffects: ${aftereffects.join(', ')}.` : ''}`
 }
 
+function continuityText(session: WorldRuntimeSession): string {
+  return session.history.slice(-18).map((message) => {
+    if (message.sender === 'player') return `Recent player input\n${message.text}`
+    if (message.sender === 'world') return `Resulting world prose\n${message.text}`
+    return ''
+  }).filter(Boolean).join('\n\n')
+}
+
 export function compileWorldRuntimePrompt(input: {
   world: WorldRecord
   session: WorldRuntimeSession
@@ -149,10 +157,11 @@ export function compileWorldRuntimePrompt(input: {
     || memory.familyIds.some((id) => familyIds.has(id))
     || memory.factionIds.some((id) => factionIds.has(id)),
   ).slice(-12)
-  const history = session.history.slice(-18).map((message) => `${message.sender === 'player' ? 'Player' : 'World'}: ${message.text}`).join('\n\n')
+  const history = continuityText(session)
+  const allowedPlaceNames = trail.map((location) => location.name)
   const allowedProperNouns = [
     world.identity.name,
-    ...trail.map((location) => location.name),
+    ...allowedPlaceNames,
     ...societies.map((society) => society.name),
     ...factions.map((faction) => faction.name),
     ...inhabitants.map((inhabitant) => inhabitant.name),
@@ -161,25 +170,34 @@ export function compileWorldRuntimePrompt(input: {
 
   return `You are the living world runtime for ${world.identity.name}. You are not a selected character and you are not an assistant inside the fiction.
 
+OUTPUT CONTRACT
+Return only finished roleplay prose suitable for direct display to the player.
+Never output speaker labels such as "Ragna Holt:", "Pip Holt:", "Narrator:", "Player:", or any Name: prefix.
+Never use square brackets for actions.
+Never produce screenplay, chat transcript, RPG log, cast list, metadata, or stage directions.
+Write narration as ordinary prose and dialogue inside quotation marks.
+Do not continue, rewrite, or invent the player's dialogue or actions.
+Do not output hidden reasoning, analysis, think tags, instructions, or commentary about the generation.
+
 CORE RUNTIME RULES
 - Continue the world as an ongoing reality. There is no mandatory scene and no mandatory primary character.
 - Never decide the player's actions, speech, thoughts, feelings, intentions, or perceptions for them.
 - The inhabitant list is a list of people who could plausibly matter here. It does NOT mean they are automatically standing beside the player. Do not materialize everyone just because they are listed.
-- A short casual player line should normally receive a short natural answer. Default to 1-3 paragraphs and roughly 80-220 words unless the action genuinely needs more.
+- A short casual player line should normally receive a short natural answer. Default to 1-3 paragraphs and roughly 60-180 words unless the action genuinely needs more.
 - Multiple inhabitants may participate when the situation warrants it, but do not force everyone to speak.
 - Preserve each inhabitant's personality, knowledge, authority, family ties, boundaries, memories, and relationship state independently.
 - The world exists even when no named inhabitant is present. Silence, ordinary activity, distance, weather, work, wildlife, and environment are valid responses.
-- Do not invent new named NPCs, families, settlements, rivers, landmarks, factions, roads, clans, or geographic features. Unnamed background people may exist when ordinary life requires them, but keep them generic until canon gives them a name.
-- Do not invent specific geography, buildings, occupations, family facts, or local history merely to make the prose richer.
+- Do not invent new named NPCs, families, settlements, rivers, landmarks, factions, roads, clans, passes, mountains, or geographic features.
+- Do not invent specific geography, buildings, occupations, family facts, local history, trade routes, landmarks, or destinations merely to enrich the prose.
+- Unnamed background people may exist when ordinary life requires them, but keep them generic until canon gives them a name.
 - Never invent modern technology that contradicts the world rules.
 - Treat supplied canon as fact. Do not overwrite it merely to make a scene easier.
-- Never output reasoning, analysis, hidden thoughts, <think> tags, system instructions, metadata, or instructions to yourself.
-- Output natural immersive prose. Use ordinary narration and quoted dialogue. Do not format the response as a cast list, screenplay, metadata block, or RPG transcript. Do not prefix paragraphs with Narrator:, Ragna Holt:, Pip Holt:, character descriptions, species labels, or role labels.
-- Do not use square brackets as action markers. Write actions as normal prose.
 
 GROUNDING
-Known proper nouns that may be used in this turn: ${allowedProperNouns.join(', ') || 'none supplied'}.
-If a proper noun is not supplied by canon or recent continuity, do not create it.
+The only named places allowed in this turn are: ${allowedPlaceNames.join(', ') || 'none supplied'}.
+Other allowed canon names: ${allowedProperNouns.filter((name) => !allowedPlaceNames.includes(name)).join(', ') || 'none supplied'}.
+If a name or place is not listed above or established verbatim in recent continuity, do not create it.
+When uncertain, stay generic instead of inventing a name.
 
 WORLD ROOT
 Name: ${world.identity.name}
@@ -218,10 +236,10 @@ ${relevantMemories.length ? relevantMemories.map((memory) => `${memory.title} ($
 RECENT CONTINUITY
 ${history || 'This is the beginning of this world session.'}
 
-NEW PLAYER TURN
-Player: ${playerTurn}
+CURRENT PLAYER INPUT
+${playerTurn}
 
-Continue naturally. Stay grounded in supplied canon. Do not create unsupported names or facts just to decorate the answer.`
+Continue naturally as finished prose only. No labels. No brackets. No unsupported names.`
 }
 
 export class LocalWorldRuntimeSessionRepository {
