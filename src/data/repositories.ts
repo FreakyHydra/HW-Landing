@@ -1,6 +1,6 @@
 import type { CharacterRecord } from '../domain/character-record'
 import type { Persona } from '../domain/persona'
-import type { WorldRecord } from '../domain/world'
+import { normalizeWorldRecord, type WorldRecord } from '../domain/world.ts'
 
 export interface CharacterRepository {
   list(): Promise<CharacterRecord[]>
@@ -66,4 +66,10 @@ export class LocalPersonaRepository extends LocalRepository<Persona> implements 
 
 export class LocalWorldRepository extends LocalRepository<WorldRecord> implements WorldRepository {
   constructor() { super('hw.forge.worlds.v1') }
+  override async list(): Promise<WorldRecord[]> { return (await super.list()).map(normalizeWorldRecord) }
+  override async get(id: string): Promise<WorldRecord | undefined> {
+    const world = await super.get(id)
+    return world ? normalizeWorldRecord(world) : undefined
+  }
+  override async save(world: WorldRecord): Promise<void> { await super.save(normalizeWorldRecord(world)) }
 }

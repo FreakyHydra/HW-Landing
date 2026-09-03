@@ -1,5 +1,5 @@
 import type { CharacterRecord } from './character-record'
-import type { FamilyPerson, WorldFaction, WorldLocation, WorldMemory, WorldRecord, WorldSpecies } from './world'
+import type { FamilyPerson, WorldFaction, WorldLocation, WorldMemory, WorldRecord, WorldSociety, WorldSpecies } from './world'
 
 export type ResolvedCharacterWorldContext = {
   worldId: string
@@ -11,6 +11,7 @@ export type ResolvedCharacterWorldContext = {
   homeLocation?: WorldLocation
   factions: WorldFaction[]
   familyPeople: Array<FamilyPerson & { familyId: string; familyName: string }>
+  societies: WorldSociety[]
   relevantMemories: WorldMemory[]
 }
 
@@ -23,6 +24,10 @@ export function resolveCharacterWorldContext(record: CharacterRecord, world: Wor
     .filter((person) => personIds.has(person.id))
     .map((person) => ({ ...person, familyId: family.id, familyName: family.name })))
   const familyIds = new Set(familyPeople.map((person) => person.familyId))
+  const societies = world.societies.filter((society) => society.familyIds.some((id) => familyIds.has(id))
+    || (record.speciesId !== undefined && society.speciesIds.includes(record.speciesId))
+    || society.factionIds.some((id) => factionIds.has(id))
+    || (record.homeLocationId !== undefined && [...society.territoryLocationIds, ...society.settlementLocationIds].includes(record.homeLocationId)))
 
   const relevantMemories = world.memories.filter((memory) =>
     memory.visibility === 'common'
@@ -42,6 +47,7 @@ export function resolveCharacterWorldContext(record: CharacterRecord, world: Wor
     homeLocation: world.locations.find((item) => item.id === record.homeLocationId),
     factions: world.factions.filter((item) => factionIds.has(item.id)),
     familyPeople,
+    societies,
     relevantMemories,
   }
 }

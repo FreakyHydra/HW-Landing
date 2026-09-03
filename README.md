@@ -9,6 +9,9 @@ The `rebrand-v2` branch grows the current Landing visual system into a responsiv
 - route-driven application shell for Forge, Roleplay, Archive and Settings
 - World Forge as the root of the RP data hierarchy
 - structured world lore, rules, species, locations, factions, families, family trees, memory and timeline
+- first-class clans, tribes, bands, nations, confederacies, chiefdoms, communities and species-specific societies
+- nested society structures with territory, species, kinship, governance, culture, family and faction links
+- reusable entity context menus with right-click, touch hold, Shift + F10 and compact three-dot access
 - standard Character Card V2 as the canonical portable character format inside a selected world
 - V2 JSON import, validation, live preview and export
 - local character and persona repositories behind persistence interfaces

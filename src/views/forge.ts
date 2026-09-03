@@ -8,6 +8,7 @@ export async function renderForge(root: HTMLElement, context: AppContext): Promi
   ])
   const recentWorlds = [...worlds].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4)
   const families = worlds.reduce((total, world) => total + world.families.length, 0)
+  const societies = worlds.reduce((total, world) => total + world.societies.length, 0)
   const memories = worlds.reduce((total, world) => total + world.memories.length, 0)
   const locations = worlds.reduce((total, world) => total + world.locations.length, 0)
 
@@ -28,7 +29,6 @@ export async function renderForge(root: HTMLElement, context: AppContext): Promi
           <i></i><i></i><i></i>
         </div>
       </article>
-
       <aside class="forge-overview-card">
         <header>
           <div><p class="eyebrow">WORLD OVERVIEW</p><h3>At a glance</h3></div>
@@ -37,6 +37,7 @@ export async function renderForge(root: HTMLElement, context: AppContext): Promi
         <div class="overview-metrics">
           <div><b>${worlds.length}</b><span>Worlds</span></div>
           <div><b>${characters.length}</b><span>Characters</span></div>
+          <div><b>${societies}</b><span>Societies</span></div>
           <div><b>${families}</b><span>Families</span></div>
           <div><b>${locations}</b><span>Locations</span></div>
         </div>
@@ -55,7 +56,7 @@ export async function renderForge(root: HTMLElement, context: AppContext): Promi
             <div class="world-preview-body">
               <strong>${escapeHtml(world.identity.name)}</strong>
               <p>${escapeHtml(world.identity.description || 'A living world waiting to be developed.')}</p>
-              <small>${world.locations.length} locations · ${world.families.length} families · ${world.memories.length} memories</small>
+              <small>${world.locations.length} locations · ${world.societies.length} societies · ${world.families.length} families · ${world.memories.length} memories</small>
             </div>
             <span class="world-preview-open">OPEN</span>
           </a>

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MemoryRepository } from '../src/data/repositories.ts'
-import { createEmptyWorld, validateWorld, worldContextSummary, type WorldRecord } from '../src/domain/world.ts'
+import { createEmptyWorld, normalizeWorldRecord, validateWorld, wouldCreateHierarchyCycle, worldContextSummary, type WorldRecord } from '../src/domain/world.ts'
 import { createEmptyCharacterCardV2 } from '../src/domain/character-card-v2.ts'
 import { resolveCharacterWorldContext } from '../src/domain/world-context.ts'
 import type { CharacterRecord } from '../src/domain/character-record.ts'
@@ -66,4 +66,38 @@ test('resolves only relevant world memory for a character', () => {
 test('rejects resolving a character against the wrong world', () => {
   const record: CharacterRecord = { id: 'mira', worldId: 'elsewhere', cardV2: createEmptyCharacterCardV2(), factionIds: [], familyPersonIds: [], knownWorldMemoryIds: [], developedCanon: [], memories: [], relationships: {}, sceneState: {}, observations: [], evolutionProposals: [], createdAt: '', updatedAt: '' }
   assert.throws(() => resolveCharacterWorldContext(record, bitterroot()), /does not belong/)
+})
+
+test('supports nested pre-industrial societies and their world links', () => {
+  const world = bitterroot()
+  world.societies.push(
+    { id: 'valley-confederacy', name: 'Valley Confederacy', type: 'confederacy', description: '', origin: '', territoryLocationIds: ['woods'], territoryNotes: 'Shared range', seasonalMovement: '', lifestyle: 'mixed', speciesIds: ['fox'], kinshipBasis: 'Oath and affinity', membershipRules: '', leadershipStructure: 'No permanent leader', decisionMaking: 'Seasonal council', customs: '', beliefs: 'Several traditions', languageDialect: 'Spoken valley dialects', livelihood: 'Mixed', allySocietyIds: [], rivalSocietyIds: [], familyIds: ['whiteclaw'], factionIds: ['watch'], settlementLocationIds: [], currentStatus: 'Active', canonStatus: 'canon' },
+    { id: 'ashfall-clan', name: 'Ashfall', type: 'clan', parentSocietyId: 'valley-confederacy', description: '', origin: '', territoryLocationIds: [], territoryNotes: '', seasonalMovement: 'Winter route', lifestyle: 'nomadic', speciesIds: ['fox'], kinshipBasis: 'Descent, adoption, and oath-bonds', membershipRules: '', leadershipStructure: 'Three speakers', decisionMaking: 'Consensus', customs: '', beliefs: '', languageDialect: '', livelihood: '', allySocietyIds: [], rivalSocietyIds: [], familyIds: [], factionIds: [], settlementLocationIds: [], currentStatus: 'Migrating', canonStatus: 'canon' },
+  )
+  assert.equal(validateWorld(world).success, true)
+  assert.ok(worldContextSummary(world).some((line) => line.includes('Valley Confederacy')))
+})
+
+test('rejects circular location and society parents', () => {
+  const world = bitterroot()
+  world.locations.push({ id: 'cave', name: 'Cave', kind: 'landmark', parentLocationId: 'woods', description: '' })
+  assert.equal(wouldCreateHierarchyCycle(world.locations, 'woods', 'cave'), true)
+  world.locations[0].parentLocationId = 'cave'
+  assert.equal(validateWorld(world).success, false)
+
+  world.locations[0].parentLocationId = undefined
+  world.societies.push(
+    { id: 'tribe', name: 'River Tribe', type: 'tribe', parentSocietyId: 'clan', description: '', origin: '', territoryLocationIds: [], territoryNotes: '', seasonalMovement: '', lifestyle: 'mixed', speciesIds: [], kinshipBasis: '', membershipRules: '', leadershipStructure: '', decisionMaking: '', customs: '', beliefs: '', languageDialect: '', livelihood: '', allySocietyIds: [], rivalSocietyIds: [], familyIds: [], factionIds: [], settlementLocationIds: [], currentStatus: '', canonStatus: 'draft' },
+    { id: 'clan', name: 'Reed Clan', type: 'clan', parentSocietyId: 'tribe', description: '', origin: '', territoryLocationIds: [], territoryNotes: '', seasonalMovement: '', lifestyle: 'settled', speciesIds: [], kinshipBasis: '', membershipRules: '', leadershipStructure: '', decisionMaking: '', customs: '', beliefs: '', languageDialect: '', livelihood: '', allySocietyIds: [], rivalSocietyIds: [], familyIds: [], factionIds: [], settlementLocationIds: [], currentStatus: '', canonStatus: 'draft' },
+  )
+  assert.equal(validateWorld(world).success, false)
+})
+
+test('normalizes older saved worlds without replacing existing data', () => {
+  const legacyShape = bitterroot() as WorldRecord & { societies?: WorldRecord['societies'] }
+  delete legacyShape.societies
+  const normalized = normalizeWorldRecord(legacyShape as WorldRecord)
+  assert.deepEqual(normalized.societies, [])
+  assert.equal(normalized.locations[0].id, 'woods')
+  assert.equal(normalized.families[0].id, 'whiteclaw')
 })

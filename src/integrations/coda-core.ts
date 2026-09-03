@@ -8,6 +8,7 @@ export type CodaWorldContext = {
   regionId?: string
   speciesId?: string
   familyId?: string
+  societyIds?: string[]
   factionIds?: string[]
   relevantMemoryIds?: string[]
 }

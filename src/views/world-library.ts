@@ -9,6 +9,7 @@ export async function renderWorldLibrary(root: HTMLElement, context: AppContext)
     lore: { tab: 'lore', title: 'World Lore', eyebrow: 'SELECT A ROOT REALITY', action: 'OPEN LORE' },
     places: { tab: 'places', title: 'World Locations', eyebrow: 'SELECT A ROOT REALITY', action: 'OPEN LOCATIONS' },
     people: { tab: 'people', title: 'World Factions', eyebrow: 'SELECT A ROOT REALITY', action: 'OPEN PEOPLE' },
+    societies: { tab: 'societies', title: 'Peoples & Societies', eyebrow: 'SELECT A ROOT REALITY', action: 'OPEN SOCIETIES' },
     families: { tab: 'families', title: 'World Families', eyebrow: 'SELECT A ROOT REALITY', action: 'OPEN FAMILIES' },
     memory: { tab: 'memory', title: 'World Memory', eyebrow: 'SELECT A ROOT REALITY', action: 'OPEN TIMELINE' },
   }
@@ -26,7 +27,7 @@ export async function renderWorldLibrary(root: HTMLElement, context: AppContext)
             <p class="eyebrow">${escapeHtml(world.identity.genre || 'UNCLASSIFIED REALITY')}</p>
             <h2>${escapeHtml(world.identity.name || 'Untitled world')}</h2>
             <p>${escapeHtml(world.identity.description || 'No world description yet.')}</p>
-            <div class="world-counts"><span>${world.locations.length} places</span><span>${world.families.length} families</span><span>${world.factions.length} factions</span><span>${world.memories.length} memories</span></div>
+            <div class="world-counts"><span>${world.locations.length} places</span><span>${world.societies.length} societies</span><span>${world.families.length} families</span><span>${world.factions.length} factions</span><span>${world.memories.length} memories</span></div>
           </div>
           <div class="card-actions"><a class="machine-button primary" href="/forge/worlds/edit/${encodeURIComponent(world.id)}/${selection ? `?tab=${selection.tab}` : ''}" data-nav>${selection?.action || 'OPEN WORLD'}</a><a class="machine-button" href="/forge/characters/create/?world=${encodeURIComponent(world.id)}" data-nav>CREATE CHARACTER</a></div>
         </article>`).join('') : `
