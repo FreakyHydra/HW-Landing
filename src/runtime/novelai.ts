@@ -1,3 +1,5 @@
+import { getRoleplayResponseLength, roleplayLengthInstruction, roleplayLengthTokenCap } from './roleplay-length-settings.ts'
+
 export const WORLD_RUNTIME_NAI_MODELS = ['xialong-v1', 'glm-4-6'] as const
 export type WorldRuntimeNovelAiModel = typeof WORLD_RUNTIME_NAI_MODELS[number]
 
@@ -96,7 +98,13 @@ export class WorldRuntimeNovelAiProvider {
   }
 
   async generate(request: WorldRuntimeGenerationRequest, persistentToken = ''): Promise<string> {
-    const raw = await this.generateRaw(request, persistentToken)
+    const responseLength = getRoleplayResponseLength()
+    const maxTokens = Math.min(request.maxTokens ?? 850, roleplayLengthTokenCap(responseLength))
+    const raw = await this.generateRaw({
+      ...request,
+      prompt: `${request.prompt}\n\n${roleplayLengthInstruction(responseLength)}`,
+      maxTokens,
+    }, persistentToken)
     const reply = cleanWorldRuntimeReply(raw, request.characterNames)
     if (!reply) throw new Error('NovelAI returned no usable roleplay text after runtime cleanup.')
     return reply
