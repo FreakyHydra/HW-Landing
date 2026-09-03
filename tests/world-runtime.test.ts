@@ -5,6 +5,7 @@ import { BITTERROOT_PUBLIC_WORLD_ID } from '../src/data/public-worlds.ts'
 import { chooseInitialLocation, compileWorldRuntimePrompt, resolveRuntimeInhabitants, type WorldRuntimeSession } from '../src/runtime/world-brain.ts'
 import { applyRelationshipEvent, evaluateRelationshipTurn } from '../src/runtime/relationship-v2.ts'
 import { cleanWorldRuntimeReply } from '../src/runtime/novelai.ts'
+import { cleanImpersonatedPlayerTurn, compileWorldImpersonationPrompt } from '../src/runtime/world-turn-tools.ts'
 
 test('Bitterroot enters a real location and resolves Holt inhabitants without selecting a character', async () => {
   const world = await new CanonicalPublicWorldRepository().get(BITTERROOT_PUBLIC_WORLD_ID)
@@ -58,6 +59,28 @@ test('NovelAI cleanup unwraps transcript formatting and stops player continuatio
   assert.match(cleaned, /Pip waves\./)
   assert.match(cleaned, /The wind moves through the pines\./)
   assert.doesNotMatch(cleaned, /I walk away/)
+})
+
+test('world impersonation writes only the player side and strips wrappers', async () => {
+  const world = await new CanonicalPublicWorldRepository().get(BITTERROOT_PUBLIC_WORLD_ID)
+  assert.ok(world)
+  const location = chooseInitialLocation(world!)
+  const inhabitants = resolveRuntimeInhabitants(world!, [], location?.id)
+  const session: WorldRuntimeSession = {
+    worldId: world!.id,
+    currentLocationId: location?.id,
+    history: [
+      { id: 'p', sender: 'player', text: 'Hello Pip.', createdAt: '2026-09-03T00:00:00.000Z' },
+      { id: 'w', sender: 'world', text: 'Pip looks up. “Hi.”', createdAt: '2026-09-03T00:00:01.000Z' },
+    ],
+    createdAt: '2026-09-03T00:00:00.000Z',
+    updatedAt: '2026-09-03T00:00:01.000Z',
+  }
+  const prompt = compileWorldImpersonationPrompt({ world: world!, session, inhabitants, direction: 'Ask what she is doing.' })
+  assert.match(prompt, /one plausible next PLAYER turn/i)
+  assert.match(prompt, /Do not write any NPC response/i)
+  assert.match(prompt, /Ask what she is doing/)
+  assert.equal(cleanImpersonatedPlayerTurn('Player: What are you doing?\nPip Holt: Skipping stones.', ['Pip Holt']), 'What are you doing?')
 })
 
 test('Relationship V2 does not punish fear or a personal boundary', () => {
