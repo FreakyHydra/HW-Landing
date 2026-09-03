@@ -19,13 +19,15 @@ export function saveRoleplayResponseLength(value: RoleplayResponseLength): Rolep
 }
 
 export function roleplayLengthInstruction(value = getRoleplayResponseLength()): string {
-  if (value === 'quick') return `RESPONSE LENGTH\n- Quick mode: usually answer in about 1-2 paragraphs.\n- Keep the scene moving and prioritize dialogue, immediate reactions, and only the narration needed to understand the moment.\n- Do not pad a naturally short exchange.`
-  if (value === 'novel') return `RESPONSE LENGTH\n- Novel-like mode: usually answer in about 5-8 substantial paragraphs when the scene supports it.\n- Add meaningful scene progression, environmental detail, character reactions, subtext, and dialogue.\n- Do not add filler merely to reach a paragraph count, and allow naturally brief exchanges to stay shorter.`
-  return `RESPONSE LENGTH\n- Immersive mode: usually answer in about 3-5 substantial paragraphs.\n- Balance dialogue with meaningful action, reaction, subtext, and environmental detail.\n- Do not pad a naturally short exchange just to reach a paragraph count.`
+  if (value === 'quick') return `RESPONSE LENGTH\n- Quick mode: usually answer in about 1-2 paragraphs.\n- Keep the scene moving and prioritize dialogue, immediate reactions, and only the narration needed to understand the moment.\n- Do not pad a naturally short exchange.\n- Finish the current sentence, dialogue line, and immediate beat naturally. Never stop mid-word, mid-sentence, or mid-dialogue merely to satisfy the length preference.`
+  if (value === 'novel') return `RESPONSE LENGTH\n- Novel-like mode: usually answer in about 5-8 substantial paragraphs when the scene supports it.\n- Add meaningful scene progression, environmental detail, character reactions, subtext, and dialogue.\n- Do not add filler merely to reach a paragraph count, and allow naturally brief exchanges to stay shorter.\n- Always finish the current sentence and scene beat naturally.`
+  return `RESPONSE LENGTH\n- Immersive mode: usually answer in about 3-5 substantial paragraphs.\n- Balance dialogue with meaningful action, reaction, subtext, and environmental detail.\n- Do not pad a naturally short exchange just to reach a paragraph count.\n- Always finish the current sentence and scene beat naturally.`
 }
 
 export function roleplayLengthTokenCap(value = getRoleplayResponseLength()): number {
-  if (value === 'quick') return 420
-  if (value === 'novel') return 1400
-  return 900
+  // Length is primarily a writing preference, not a hard truncation target.
+  // Keep enough headroom for the model to finish its current sentence/beat cleanly.
+  if (value === 'quick') return 800
+  if (value === 'novel') return 1600
+  return 1100
 }
