@@ -17,9 +17,12 @@ test('Bitterroot enters a real location and resolves Holt inhabitants without se
   const session: WorldRuntimeSession = {
     worldId: world!.id,
     currentLocationId: location?.id,
-    history: [],
+    history: [
+      { id: 'p', sender: 'player', text: 'hello', createdAt: '2026-09-03T00:00:00.000Z' },
+      { id: 'w', sender: 'world', text: 'Ragna looks over. “Afternoon.”', createdAt: '2026-09-03T00:00:01.000Z' },
+    ],
     createdAt: '2026-09-03T00:00:00.000Z',
-    updatedAt: '2026-09-03T00:00:00.000Z',
+    updatedAt: '2026-09-03T00:00:01.000Z',
   }
   const prompt = compileWorldRuntimePrompt({ world: world!, session, playerTurn: 'I walk toward the ranger station.', inhabitants })
   assert.match(prompt, /living world runtime for Bitterroot/i)
@@ -29,7 +32,11 @@ test('Bitterroot enters a real location and resolves Holt inhabitants without se
   assert.match(prompt, /no mandatory primary character/i)
   assert.match(prompt, /do not invent new named NPCs/i)
   assert.match(prompt, /not automatically present/i)
-  assert.match(prompt, /Do not format the response as a cast list/i)
+  assert.match(prompt, /Never output speaker labels/i)
+  assert.match(prompt, /Recent player input\nhello/)
+  assert.match(prompt, /Resulting world prose\nRagna looks over/)
+  assert.doesNotMatch(prompt, /Player: hello/)
+  assert.doesNotMatch(prompt, /World: Ragna looks over/)
   assert.doesNotMatch(prompt, /selected character:/i)
 })
 
@@ -37,6 +44,20 @@ test('NovelAI cleanup removes leaked reasoning before roleplay prose', () => {
   const raw = 'Show only observable facts and no metadata.</think>\nRagna steps into view. "Afternoon."'
   assert.equal(cleanWorldRuntimeReply(raw), 'Ragna steps into view. "Afternoon."')
   assert.equal(cleanWorldRuntimeReply('<think>private reasoning</think>\nThe wind moves through the pines.'), 'The wind moves through the pines.')
+})
+
+test('NovelAI cleanup unwraps transcript formatting and stops player continuation', () => {
+  const raw = 'Ragna Holt: [Her ears twitch.] Afternoon.  Pip Holt: [Pip waves.] Hi!  Narrator: The wind moves through the pines.  Player: I walk away.'
+  const cleaned = cleanWorldRuntimeReply(raw, ['Ragna Holt', 'Pip Holt'])
+  assert.doesNotMatch(cleaned, /Ragna Holt:/)
+  assert.doesNotMatch(cleaned, /Pip Holt:/)
+  assert.doesNotMatch(cleaned, /Narrator:/)
+  assert.doesNotMatch(cleaned, /Player:/)
+  assert.doesNotMatch(cleaned, /\[/)
+  assert.match(cleaned, /Her ears twitch\./)
+  assert.match(cleaned, /Pip waves\./)
+  assert.match(cleaned, /The wind moves through the pines\./)
+  assert.doesNotMatch(cleaned, /I walk away/)
 })
 
 test('Relationship V2 does not punish fear or a personal boundary', () => {
