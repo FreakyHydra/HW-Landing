@@ -8,10 +8,15 @@ function worldCard(world: WorldRecord, source: 'public' | 'local', selection?: {
   const worldId = encodeURIComponent(world.id)
   const manageUrl = `/forge/worlds/edit/${worldId}/${selection ? `?tab=${selection.tab}` : ''}`
   const enterUrl = `/roleplay/world/${worldId}/`
+  const newSessionUrl = `${enterUrl}?new=1`
+  const hasSession = localStorage.getItem(`hw.runtime.world.${world.id}.v1`) !== null
   const sourceLabel = source === 'public' ? 'PUBLIC STARTER' : 'LOCAL WORLD'
+  const runtimeActions = hasSession
+    ? `<a class="machine-button primary" href="${enterUrl}" data-nav>RESUME</a><a class="machine-button" href="${newSessionUrl}" data-nav>NEW SESSION</a>`
+    : `<a class="machine-button primary" href="${newSessionUrl}" data-nav>START WORLD</a>`
   const actions = source === 'public'
-    ? `<a class="machine-button primary" href="${enterUrl}" data-nav>ENTER WORLD</a><button class="machine-button" type="button" data-copy-public-world="${worldId}">COPY TO LIBRARY</button>`
-    : `<a class="machine-button primary" href="${enterUrl}" data-nav>ENTER WORLD</a><a class="machine-button" href="${manageUrl}" data-nav>${selection?.action || 'MANAGE WORLD'}</a>`
+    ? `${runtimeActions}<button class="machine-button" type="button" data-copy-public-world="${worldId}">COPY TO LIBRARY</button>`
+    : `${runtimeActions}<a class="machine-button" href="${manageUrl}" data-nav>${selection?.action || 'MANAGE WORLD'}</a>`
 
   return `
     <article class="world-card instrument-panel compact-world-card">
