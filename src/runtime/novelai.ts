@@ -22,18 +22,27 @@ function stripLeadingRuntimeDirective(text: string): string {
     /\brespect .+ relationship state\b/i,
     /\bdefault to (?:silence|environment|another inhabitant)\b/i,
     /\bshort natural response\b/i,
-    /\bdo not (?:create|invent|output|continue)\b/i,
+    /\bdo not (?:create|invent|output|continue|decide|include)\b/i,
+    /\bplayer(?:'s)? (?:actions|words|feelings|input)\b/i,
   ]
   const matches = directiveSignals.filter((pattern) => pattern.test(head)).length
   if (matches < 2) return text
   return firstBreak >= 0 ? text.slice(firstBreak).trim() : ''
 }
 
+function stripTrailingMetadata(text: string): string {
+  const metadataLine = /(?:^|\n)\s*(?:Emotion|Mood|State|Relationship|Trust|Affection|Thoughts?|Analysis|Notes?|Metadata)\s*:\s*[^\n]*\s*$/i
+  let previous = ''
+  while (text !== previous) {
+    previous = text
+    text = text.replace(metadataLine, '').trim()
+  }
+  return text
+}
+
 export function cleanWorldRuntimeReply(raw: string, characterNames: string[] = []): string {
   let text = raw.trim()
 
-  // Some reasoning-capable models can expose hidden scratch text before a
-  // closing think tag even when the opening tag is omitted by the upstream.
   const lastThinkClose = text.toLowerCase().lastIndexOf('</think>')
   if (lastThinkClose >= 0) text = text.slice(lastThinkClose + '</think>'.length).trim()
   text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
@@ -43,12 +52,9 @@ export function cleanWorldRuntimeReply(raw: string, characterNames: string[] = [
   text = text.replace(/^\s*(?:assistant|world runtime|response)\s*:\s*/i, '')
   text = stripLeadingRuntimeDirective(text)
 
-  // The model must not continue the player's side of the exchange.
   const playerContinuation = text.search(/(?:^|\n|\s{2,})Player\s*:/i)
   if (playerContinuation >= 0) text = text.slice(0, playerContinuation).trim()
 
-  // Transcript-style labels sometimes survive prompt instructions. Convert
-  // them to paragraph boundaries rather than displaying an RPG cast list.
   const labels = ['Narrator', ...characterNames]
     .filter(Boolean)
     .sort((a, b) => b.length - a.length)
@@ -58,9 +64,8 @@ export function cleanWorldRuntimeReply(raw: string, characterNames: string[] = [
     text = text.replace(labelPattern, '\n\n')
   }
 
-  // Old roleplay formatting used [action text]. The world runtime renders
-  // continuous prose, so unwrap action brackets instead of preserving them.
   text = text.replace(/\[([^\[\]]{1,1200})\]/g, '$1')
+  text = stripTrailingMetadata(text)
   text = text.replace(/\n{3,}/g, '\n\n')
   text = text.replace(/[ \t]+\n/g, '\n')
   return text.trim()
