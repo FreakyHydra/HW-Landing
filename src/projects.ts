@@ -17,6 +17,7 @@ export type Project = {
 }
 
 const appUrl = import.meta.env.VITE_HW_APP_URL || '/hwrpv2/'
+const sandboxUrl = import.meta.env.VITE_SANDBOX_URL || 'https://sandbox.thehowlingwhispers.com'
 const eveCorpUrl = import.meta.env.VITE_EVE_CORP_URL || '/eve/lightyear-apart/'
 
 export const projects: Project[] = [
@@ -24,9 +25,18 @@ export const projects: Project[] = [
     title: 'The Howling Whispers',
     stage: 'STABLE',
     realm: 'ROLEPLAY',
-    desc: 'The main roleplay platform, including Sandbox, World Runtime and the Forge.',
+    desc: 'The new roleplay platform, including World Runtime and the Forge.',
     href: appUrl,
     actionLabel: 'ENTER REBRAND',
+    access: 'stable',
+  },
+  {
+    title: 'Sandbox',
+    stage: 'STABLE',
+    realm: 'ROLEPLAY',
+    desc: 'Enter the isolated character and persona roleplay Sandbox.',
+    href: sandboxUrl,
+    actionLabel: 'ENTER SANDBOX',
     access: 'stable',
   },
   {
