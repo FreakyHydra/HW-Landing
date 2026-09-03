@@ -73,6 +73,15 @@ export function defaultWorldTimeWeather(): WorldTimeWeather {
   }
 }
 
+export function worldTimeWeatherOf(world: WorldRecord): WorldTimeWeather {
+  const defaults = defaultWorldTimeWeather()
+  return {
+    ...defaults,
+    ...(world.timeWeather ?? {}),
+    seasons: structuredClone(world.timeWeather?.seasons ?? defaults.seasons),
+  }
+}
+
 export type WorldSpecies = { id: string; name: string; description: string }
 export const locationKinds = ['continent', 'major region', 'region', 'subregion', 'territory', 'settlement', 'town', 'village', 'district', 'wilderness', 'building', 'landmark', 'road or trail', 'river', 'lake', 'sea or ocean', 'other'] as const
 export type WorldLocationKind = typeof locationKinds[number]
@@ -164,7 +173,7 @@ export type WorldRecord = {
   identity: WorldIdentity
   rules: WorldRules
   lore: WorldLore
-  timeWeather: WorldTimeWeather
+  timeWeather?: WorldTimeWeather
   species: WorldSpecies[]
   locations: WorldLocation[]
   factions: WorldFaction[]
@@ -191,13 +200,14 @@ export function createEmptyWorld(id: string, now = new Date().toISOString()): Wo
 
 export function validateWorld(world: WorldRecord): WorldValidation {
   const errors: string[] = []
+  const timeWeather = worldTimeWeatherOf(world)
   if (!world.id.trim()) errors.push('World id is required')
   if (!world.identity.name.trim()) errors.push('World name is required')
-  if (world.timeWeather.hoursPerDay <= 0) errors.push('Hours per day must be greater than zero')
-  if (world.timeWeather.minutesPerInput <= 0) errors.push('Minutes per input must be greater than zero')
-  if (world.timeWeather.simpleDayRealMinutes <= 0) errors.push('Simple day length must be greater than zero')
-  if (world.timeWeather.seasonsEnabled && !world.timeWeather.seasons.length) errors.push('At least one season is required when seasons are enabled')
-  if (world.timeWeather.seasons.some((season) => season.lengthDays <= 0)) errors.push('Season lengths must be greater than zero')
+  if (timeWeather.hoursPerDay <= 0) errors.push('Hours per day must be greater than zero')
+  if (timeWeather.minutesPerInput <= 0) errors.push('Minutes per input must be greater than zero')
+  if (timeWeather.simpleDayRealMinutes <= 0) errors.push('Simple day length must be greater than zero')
+  if (timeWeather.seasonsEnabled && !timeWeather.seasons.length) errors.push('At least one season is required when seasons are enabled')
+  if (timeWeather.seasons.some((season) => season.lengthDays <= 0)) errors.push('Season lengths must be greater than zero')
   const unique = (values: { id: string }[], label: string) => {
     const ids = values.map((item) => item.id)
     if (new Set(ids).size !== ids.length) errors.push(`${label} ids must be unique`)
@@ -208,7 +218,7 @@ export function validateWorld(world: WorldRecord): WorldValidation {
   unique(world.societies, 'Society')
   unique(world.families, 'Family')
   unique(world.memories, 'Memory')
-  unique(world.timeWeather.seasons, 'Season')
+  unique(timeWeather.seasons, 'Season')
   unique(world.families.flatMap((family) => family.people), 'Family person')
   const locationIds = new Set(world.locations.map((location) => location.id))
   const factionIds = new Set(world.factions.map((faction) => faction.id))
@@ -249,14 +259,15 @@ export function validateWorld(world: WorldRecord): WorldValidation {
 }
 
 export function worldContextSummary(world: WorldRecord): string[] {
+  const timeWeather = worldTimeWeatherOf(world)
   return [
     world.identity.genre && `Genre: ${world.identity.genre}`,
     world.identity.tone && `Tone: ${world.identity.tone}`,
     world.rules.technology && `Technology: ${world.rules.technology}`,
     world.rules.magicPhysics && `Magic / physics: ${world.rules.magicPhysics}`,
-    `Time: ${world.timeWeather.hoursPerDay}h day · ${world.timeWeather.mode === 'tick' ? `${world.timeWeather.minutesPerInput}m/input` : 'real-time'}`,
-    world.timeWeather.seasonsEnabled && world.timeWeather.seasons.length && `Seasons: ${world.timeWeather.seasons.map((season) => season.name).join(', ')}`,
-    world.timeWeather.climate && `Climate: ${world.timeWeather.climate}`,
+    `Time: ${timeWeather.hoursPerDay}h day · ${timeWeather.mode === 'tick' ? `${timeWeather.minutesPerInput}m/input` : 'real-time'}`,
+    timeWeather.seasonsEnabled && timeWeather.seasons.length && `Seasons: ${timeWeather.seasons.map((season) => season.name).join(', ')}`,
+    timeWeather.climate && `Climate: ${timeWeather.climate}`,
     world.species.length && `Species: ${world.species.map((item) => item.name).join(', ')}`,
     world.locations.length && `Locations: ${world.locations.map((item) => item.name).join(', ')}`,
     world.factions.length && `Factions: ${world.factions.map((item) => item.name).join(', ')}`,
@@ -280,15 +291,10 @@ export function wouldCreateHierarchyCycle<T extends { id: string; parentLocation
 }
 
 export function normalizeWorldRecord(world: WorldRecord): WorldRecord {
-  const defaults = defaultWorldTimeWeather()
-  const source = structuredClone(world) as WorldRecord & { timeWeather?: Partial<WorldTimeWeather> }
+  const source = structuredClone(world)
   return {
     ...source,
-    timeWeather: {
-      ...defaults,
-      ...(source.timeWeather ?? {}),
-      seasons: structuredClone(source.timeWeather?.seasons ?? defaults.seasons),
-    },
+    timeWeather: worldTimeWeatherOf(source),
     societies: structuredClone(source.societies ?? []),
   }
 }
