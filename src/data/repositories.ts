@@ -1,6 +1,6 @@
 import type { CharacterRecord } from '../domain/character-record'
 import type { Persona } from '../domain/persona'
-import { normalizeWorldRecord, type WorldRecord } from '../domain/world.ts'
+import { normalizeWorldRecord, type WorldRecord, type WorldTimeWeather } from '../domain/world.ts'
 
 export interface CharacterRepository {
   list(): Promise<CharacterRecord[]>
@@ -69,6 +69,15 @@ export class LocalPersonaRepository extends LocalRepository<Persona> implements 
   }
 }
 
+function pendingTimeWeather(worldId: string): WorldTimeWeather | undefined {
+  try {
+    const value = localStorage.getItem(`hw.forge.world-time-weather.${worldId}`)
+    return value ? JSON.parse(value) as WorldTimeWeather : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export class LocalWorldRepository extends LocalRepository<WorldRecord> implements WorldRepository {
   constructor() { super('hw.forge.worlds.v1') }
   override async list(): Promise<WorldRecord[]> { return (await super.list()).map(normalizeWorldRecord) }
@@ -76,5 +85,11 @@ export class LocalWorldRepository extends LocalRepository<WorldRecord> implement
     const world = await super.get(id)
     return world ? normalizeWorldRecord(world) : undefined
   }
-  override async save(world: WorldRecord): Promise<void> { await super.save(normalizeWorldRecord(world)) }
+  override async save(world: WorldRecord): Promise<void> {
+    const normalized = normalizeWorldRecord(world)
+    const pending = pendingTimeWeather(normalized.id)
+    if (pending) normalized.timeWeather = structuredClone(pending)
+    await super.save(normalized)
+    if (pending) localStorage.removeItem(`hw.forge.world-time-weather.${normalized.id}`)
+  }
 }
