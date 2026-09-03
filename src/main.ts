@@ -1,34 +1,18 @@
 import './style.css'
 import { createField } from './field'
-import { shatterSigil } from './shatter'
-import { markGateAccepted, mountUi, renderIdentity, renderProjects, showDeniedReason } from './ui'
+import { markGateAccepted, mountUi, showDeniedReason } from './ui'
 import type { AccessTier, Session } from './projects'
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+const lobbyUrl = import.meta.env.VITE_LOBBY_URL || '/lobby/'
 
 document.addEventListener('contextmenu', (event) => {
   event.preventDefault()
 })
 
 const ui = mountUi()
-const field = createField(ui.field, ui.shatter, ui.aura, ui.sigil, reducedMotion)
+createField(ui.field, ui.shatter, ui.aura, ui.sigil, reducedMotion)
 showDeniedReason(ui.gateNote)
-
-function revealWorld(session: Session) {
-  renderIdentity(ui.identity, session)
-  renderProjects(ui.projectGrid, session)
-  shatterSigil({
-    canvas: ui.shatter,
-    image: ui.sigilImage,
-    gate: ui.gate,
-    world: ui.world,
-    reducedMotion,
-    addRipple: field.addRipple,
-  }, () => {
-    window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' })
-    history.replaceState({}, '', location.pathname)
-  })
-}
 
 function devPreviewSession(): Session | undefined {
   if (!import.meta.env.DEV) return undefined
@@ -47,6 +31,15 @@ function devPreviewSession(): Session | undefined {
   }
 }
 
+function enterLobby(session: Session): void {
+  markGateAccepted(ui, session)
+  ui.gateAction.textContent = 'ENTER THE LOBBY'
+  ui.gateNote.textContent = 'Your seal is accepted. Passing you beyond the gate.'
+  window.setTimeout(() => {
+    location.assign(lobbyUrl)
+  }, reducedMotion ? 150 : 1050)
+}
+
 async function loadSession() {
   try {
     const session = devPreviewSession() || await (async () => {
@@ -57,8 +50,7 @@ async function loadSession() {
 
     if (session.authenticated) {
       await ui.sigilImage.decode().catch(() => undefined)
-      markGateAccepted(ui, session)
-      setTimeout(() => revealWorld(session), reducedMotion ? 120 : 1900)
+      enterLobby(session)
     }
   } catch {
     ui.gateNote.textContent = 'The gate is offline. The worlds remain sealed for now.'
