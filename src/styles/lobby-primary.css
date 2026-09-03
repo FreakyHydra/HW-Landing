@@ -1,0 +1,51 @@
+.projects {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.project.primary {
+  grid-column: span 2;
+  min-height: 330px;
+  border-color: rgba(205,145,92,.28);
+  background:
+    radial-gradient(620px circle at var(--mx) var(--my), rgba(205,145,92,.14), transparent 42%),
+    linear-gradient(145deg, rgba(31,21,17,.88), rgba(8,8,9,.9));
+}
+
+.project.primary h3 {
+  font-size: clamp(2rem, 3.8vw, 3.5rem);
+}
+
+.project.secondary {
+  grid-column: span 2;
+  min-height: 220px;
+  opacity: .78;
+  margin-top: 20px;
+}
+
+.project.secondary h3 {
+  font-size: clamp(1.35rem, 2.5vw, 2rem);
+}
+
+.project.secondary p {
+  font-size: .84rem;
+}
+
+.project.secondary .project-meta {
+  margin-bottom: 14px;
+}
+
+.project.secondary .project-action {
+  min-height: 34px;
+}
+
+@media (max-width: 980px) {
+  .project.primary { grid-column: span 3; }
+  .project.secondary { grid-column: span 3; }
+}
+
+@media (max-width: 700px) {
+  .projects { grid-template-columns: 1fr; }
+  .project.primary,
+  .project.secondary { grid-column: 1; margin-top: 0; }
+  .project.secondary { min-height: 210px; }
+}
