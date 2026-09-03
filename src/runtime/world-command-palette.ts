@@ -67,12 +67,14 @@ function mountRuntimePalette(): void {
   const input = form.querySelector<HTMLTextAreaElement>('textarea')
   const arrow = form.querySelector<HTMLElement>('.world-runtime-prompt-mark')
   if (!input || !arrow) return
+  const promptInput = input
+  const promptArrow = arrow
 
-  arrow.setAttribute('role', 'button')
-  arrow.setAttribute('tabindex', '0')
-  arrow.setAttribute('aria-label', 'Open command menu')
-  arrow.setAttribute('aria-haspopup', 'menu')
-  arrow.title = 'Commands'
+  promptArrow.setAttribute('role', 'button')
+  promptArrow.setAttribute('tabindex', '0')
+  promptArrow.setAttribute('aria-label', 'Open command menu')
+  promptArrow.setAttribute('aria-haspopup', 'menu')
+  promptArrow.title = 'Commands'
 
   const palette = document.createElement('div')
   palette.dataset.commandPalette = 'true'
@@ -98,12 +100,12 @@ function mountRuntimePalette(): void {
       </button>
     `).join('') : '<p class="world-command-empty">No matching commands.</p>'
     palette.hidden = false
-    arrow.setAttribute('aria-expanded', 'true')
+    promptArrow.setAttribute('aria-expanded', 'true')
   }
 
   function close(): void {
     palette.hidden = true
-    arrow.setAttribute('aria-expanded', 'false')
+    promptArrow.setAttribute('aria-expanded', 'false')
   }
 
   function selectItem(item: CommandItem): void {
@@ -114,11 +116,11 @@ function mountRuntimePalette(): void {
       return
     }
     if (!item.value) return
-    input.value = item.value
-    input.dispatchEvent(new Event('input', { bubbles: true }))
+    promptInput.value = item.value
+    promptInput.dispatchEvent(new Event('input', { bubbles: true }))
     close()
-    input.focus()
-    input.setSelectionRange(input.value.length, input.value.length)
+    promptInput.focus()
+    promptInput.setSelectionRange(promptInput.value.length, promptInput.value.length)
   }
 
   function openRoot(): void {
@@ -128,7 +130,7 @@ function mountRuntimePalette(): void {
   }
 
   function autocomplete(): void {
-    const query = input.value.trim().toLowerCase()
+    const query = promptInput.value.trim().toLowerCase()
     if (!query.startsWith('/')) {
       close()
       return
@@ -141,8 +143,8 @@ function mountRuntimePalette(): void {
     render(matches, true)
   }
 
-  arrow.addEventListener('click', () => palette.hidden ? openRoot() : close())
-  arrow.addEventListener('keydown', (event) => {
+  promptArrow.addEventListener('click', () => palette.hidden ? openRoot() : close())
+  promptArrow.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       palette.hidden ? openRoot() : close()
@@ -161,25 +163,25 @@ function mountRuntimePalette(): void {
     const button = target.closest<HTMLButtonElement>('[data-command-index]')
     if (!button) return
     const index = Number(button.dataset.commandIndex)
-    const queryMode = input.value.trim().startsWith('/')
+    const queryMode = promptInput.value.trim().startsWith('/')
     const source = queryMode
-      ? LEAVES.filter((item) => item.value!.toLowerCase().startsWith(input.value.trim().toLowerCase()) || item.label.toLowerCase().includes(input.value.trim().slice(1).toLowerCase()) || item.path.some((part) => part.toLowerCase().includes(input.value.trim().slice(1).toLowerCase()))).slice(0, 12)
+      ? LEAVES.filter((item) => item.value!.toLowerCase().startsWith(promptInput.value.trim().toLowerCase()) || item.label.toLowerCase().includes(promptInput.value.trim().slice(1).toLowerCase()) || item.path.some((part) => part.toLowerCase().includes(promptInput.value.trim().slice(1).toLowerCase()))).slice(0, 12)
       : currentItems()
     const item = source[index]
     if (item) selectItem(item)
   })
 
-  input.addEventListener('input', autocomplete)
-  input.addEventListener('keydown', (event) => {
+  promptInput.addEventListener('input', autocomplete)
+  promptInput.addEventListener('keydown', (event) => {
     if (palette.hidden) return
-    const items = input.value.trim().startsWith('/')
-      ? LEAVES.filter((item) => item.value!.toLowerCase().startsWith(input.value.trim().toLowerCase()) || item.label.toLowerCase().includes(input.value.trim().slice(1).toLowerCase()) || item.path.some((part) => part.toLowerCase().includes(input.value.trim().slice(1).toLowerCase()))).slice(0, 12)
+    const items = promptInput.value.trim().startsWith('/')
+      ? LEAVES.filter((item) => item.value!.toLowerCase().startsWith(promptInput.value.trim().toLowerCase()) || item.label.toLowerCase().includes(promptInput.value.trim().slice(1).toLowerCase()) || item.path.some((part) => part.toLowerCase().includes(promptInput.value.trim().slice(1).toLowerCase()))).slice(0, 12)
       : currentItems()
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       activeIndex = (activeIndex + (event.key === 'ArrowDown' ? 1 : -1) + Math.max(items.length, 1)) % Math.max(items.length, 1)
-      render(items, input.value.trim().startsWith('/'))
-    } else if (event.key === 'Tab' && input.value.trim().startsWith('/') && items.length) {
+      render(items, promptInput.value.trim().startsWith('/'))
+    } else if (event.key === 'Tab' && promptInput.value.trim().startsWith('/') && items.length) {
       event.preventDefault()
       selectItem(items[activeIndex])
     } else if (event.key === 'Escape') {
@@ -190,7 +192,7 @@ function mountRuntimePalette(): void {
 
   document.addEventListener('pointerdown', (event) => {
     const target = event.target as Node
-    if (!palette.hidden && !palette.contains(target) && !arrow.contains(target)) close()
+    if (!palette.hidden && !palette.contains(target) && !promptArrow.contains(target)) close()
   })
 }
 
