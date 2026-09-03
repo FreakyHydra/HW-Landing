@@ -59,7 +59,7 @@ export async function renderWorldLibrary(root: HTMLElement, context: AppContext,
       if (!publicWorld) return toast(root, 'Public world could not be found.', 'error')
       const localCopy = copyPublicWorldForLocal(publicWorld, uid('world'))
       await context.worlds.save(localCopy)
-      toast(root, `${publicWorld.identity.name} copied to your local library.`, 'success')
+      toast(root, `${publicWorld.identity.name} copied to your local library.`, 'normal')
       navigate(`/forge/worlds/edit/${encodeURIComponent(localCopy.id)}/`)
     })
   })
