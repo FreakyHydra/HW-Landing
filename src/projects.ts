@@ -13,6 +13,7 @@ export type Project = {
   desc: string
   href?: string
   actionLabel?: string
+  primary?: boolean
   access: Exclude<AccessTier, 'all'>
 }
 
@@ -28,6 +29,7 @@ export const projects: Project[] = [
     desc: 'The new roleplay platform, including World Runtime and the Forge.',
     href: appUrl,
     actionLabel: 'ENTER REBRAND',
+    primary: true,
     access: 'stable',
   },
   {
@@ -37,6 +39,7 @@ export const projects: Project[] = [
     desc: 'Enter the isolated character and persona roleplay Sandbox.',
     href: sandboxUrl,
     actionLabel: 'ENTER SANDBOX',
+    primary: true,
     access: 'stable',
   },
   {
@@ -46,6 +49,7 @@ export const projects: Project[] = [
     desc: 'Enter the Lightyear Apart corporation area.',
     href: eveCorpUrl,
     actionLabel: 'ENTER CORP',
+    primary: true,
     access: 'stable',
   },
   {
