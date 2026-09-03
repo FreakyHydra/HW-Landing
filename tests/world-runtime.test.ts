@@ -77,8 +77,13 @@ test('world impersonation writes only the player side and strips wrappers', asyn
     updatedAt: '2026-09-03T00:00:01.000Z',
   }
   const prompt = compileWorldImpersonationPrompt({ world: world!, session, inhabitants, direction: 'Ask what she is doing.' })
-  assert.match(prompt, /one plausible next PLAYER turn/i)
-  assert.match(prompt, /Do not write any NPC response/i)
+  assert.match(prompt, /next PLAYER turn/i)
+  assert.match(prompt, /only filling the player's turn slot/i)
+  assert.match(prompt, /world response is generated separately/i)
+  assert.match(prompt, /creator's world rules.*authoritative/i)
+  assert.match(prompt, /RECENT CONTINUITY/)
+  assert.match(prompt, /Pip looks up\. “Hi\.”/)
+  assert.match(prompt, /USER DIRECTION/)
   assert.match(prompt, /Ask what she is doing/)
   assert.equal(cleanImpersonatedPlayerTurn('Player: What are you doing?\nPip Holt: Skipping stones.', ['Pip Holt']), 'What are you doing?')
 })
