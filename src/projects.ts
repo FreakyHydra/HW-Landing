@@ -12,6 +12,7 @@ export type Project = {
   realm: 'ROLEPLAY' | 'SOUND' | 'WORLD' | 'DESKTOP' | 'EVE ONLINE'
   desc: string
   href?: string
+  actionLabel?: string
   access: Exclude<AccessTier, 'all'>
 }
 
@@ -25,6 +26,7 @@ export const projects: Project[] = [
     realm: 'ROLEPLAY',
     desc: 'The main roleplay platform, including Sandbox, World Runtime and the Forge.',
     href: appUrl,
+    actionLabel: 'ENTER REBRAND',
     access: 'stable',
   },
   {
@@ -33,6 +35,7 @@ export const projects: Project[] = [
     realm: 'EVE ONLINE',
     desc: 'Enter the Lightyear Apart corporation area.',
     href: eveCorpUrl,
+    actionLabel: 'ENTER CORP',
     access: 'stable',
   },
   {
