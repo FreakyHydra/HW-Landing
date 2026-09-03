@@ -11,7 +11,7 @@ import { renderWorldLibrary, renderWorldSelectionForCharacter } from '../views/w
 import { renderSettings } from '../views/settings'
 import { bindShell } from './shell'
 
-export type AppContext = { characters: CharacterRepository; personas: PersonaRepository; worlds: WorldRepository }
+export type AppContext = { characters: CharacterRepository; personas: PersonaRepository; worlds: WorldRepository; publicWorlds: WorldRepository }
 export type Navigate = (path: string) => void
 
 export class AppRouter {
@@ -52,11 +52,11 @@ export class AppRouter {
       await renderPersonas(this.root, this.context, navigate, path.includes('/create'))
     }
     else if (path.startsWith('/forge/personas/edit/')) await renderPersonas(this.root, this.context, navigate, true, decodeURIComponent(path.split('/')[4]))
-    else if (path === '/forge/worlds/' || path === '/forge/worlds') await renderWorldLibrary(this.root, this.context)
+    else if (path === '/forge/worlds/' || path === '/forge/worlds') await renderWorldLibrary(this.root, this.context, navigate)
     else if (path === '/forge/worlds/create/' || path === '/forge/worlds/create') await renderWorldEditor(this.root, this.context, navigate)
     else if (/^\/forge\/worlds\/edit\/[^/]+\/?$/.test(path)) await renderWorldEditor(this.root, this.context, navigate, decodeURIComponent(path.split('/')[4]))
     else if (path === '/forge/lore/') await renderPlaceholder(this.root, 'Lore Workshop', 'WORLD-ROOTED LORE', 'Lore is authored inside a world so its cultures, locations, families and history remain connected. Open a world to continue.')
-    else if (path.startsWith('/roleplay')) await renderPlaceholder(this.root, 'Roleplay', 'Arena migration', 'The current roleplay environment remains available during migration. This route is reserved for the new arena, but no imitation or partial chat has been placed here.')
+    else if (path.startsWith('/roleplay')) await renderPlaceholder(this.root, 'Roleplay', 'World runtime pending', 'The new roleplay area will enter a world directly. The world-first runtime has not been implemented yet.')
     else if (path.startsWith('/archive')) await renderPlaceholder(this.root, 'Archive', 'History without loss', 'Conversation branches, revisions and exported records will gather here in a later phase.')
     else if (path.startsWith('/settings')) await renderSettings(this.root)
     else await renderPlaceholder(this.root, 'Path not found', '404', 'This route has not been forged yet.')

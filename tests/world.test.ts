@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MemoryRepository } from '../src/data/repositories.ts'
+import { BITTERROOT_PUBLIC_WORLD_ID, PublicWorldRepository, copyPublicWorldForLocal, createBitterrootWorld } from '../src/data/public-worlds.ts'
 import { createEmptyWorld, normalizeWorldRecord, validateWorld, wouldCreateHierarchyCycle, worldContextSummary, type WorldRecord } from '../src/domain/world.ts'
 import { createEmptyCharacterCardV2 } from '../src/domain/character-card-v2.ts'
 import { resolveCharacterWorldContext } from '../src/domain/world-context.ts'
@@ -100,4 +101,41 @@ test('normalizes older saved worlds without replacing existing data', () => {
   assert.deepEqual(normalized.societies, [])
   assert.equal(normalized.locations[0].id, 'woods')
   assert.equal(normalized.families[0].id, 'whiteclaw')
+})
+
+test('Bitterroot public starter is fully linked and validates', () => {
+  const world = createBitterrootWorld()
+  assert.equal(world.id, BITTERROOT_PUBLIC_WORLD_ID)
+  assert.equal(validateWorld(world).success, true)
+  assert.ok(world.locations.some((location) => location.kind === 'continent'))
+  assert.ok(world.locations.some((location) => location.kind === 'major region'))
+  assert.ok(world.locations.some((location) => location.kind === 'region'))
+  assert.ok(world.locations.some((location) => location.kind === 'subregion'))
+  assert.ok(world.locations.some((location) => location.name === 'Whispering Woods'))
+  assert.ok(world.locations.some((location) => location.name === 'Bitterroot Orphanage'))
+  assert.ok(world.societies.some((society) => society.name === 'Whispering Woods Clans'))
+  assert.equal(world.rules.technology.startsWith('Pre-industrial'), true)
+  assert.ok(world.rules.constraints.some((constraint) => constraint.includes('No humans')))
+})
+
+test('public Bitterroot repository is read-only and returns clones', async () => {
+  const repository = new PublicWorldRepository()
+  const world = await repository.get(BITTERROOT_PUBLIC_WORLD_ID)
+  assert.ok(world)
+  world!.identity.name = 'Changed locally'
+  const untouched = await repository.get(BITTERROOT_PUBLIC_WORLD_ID)
+  assert.equal(untouched?.identity.name, 'Bitterroot')
+  await assert.rejects(repository.save(untouched!), /read-only/)
+  await assert.rejects(repository.remove(BITTERROOT_PUBLIC_WORLD_ID), /read-only/)
+})
+
+test('copying public Bitterroot creates an editable world without changing the public id', () => {
+  const original = createBitterrootWorld('2026-09-03T00:00:00.000Z')
+  const copy = copyPublicWorldForLocal(original, 'world-local-copy', '2026-09-03T12:00:00.000Z')
+  assert.equal(original.id, BITTERROOT_PUBLIC_WORLD_ID)
+  assert.equal(copy.id, 'world-local-copy')
+  assert.equal(copy.identity.name, 'Bitterroot')
+  assert.equal(copy.createdAt, '2026-09-03T12:00:00.000Z')
+  copy.locations[0].name = 'Edited local continent'
+  assert.equal(original.locations[0].name, 'Bitterroot')
 })
