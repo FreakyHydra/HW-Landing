@@ -15,13 +15,15 @@ export type Project = {
   access: Exclude<AccessTier, 'all'>
 }
 
+const appUrl = import.meta.env.VITE_HW_APP_URL || '/hwrpv2/'
+
 export const projects: Project[] = [
   {
     title: 'The Howling Whispers',
     stage: 'STABLE',
     realm: 'ROLEPLAY',
-    desc: 'The main roleplay world and character platform.',
-    href: 'https://rp.thehowlingwhispers.com',
+    desc: 'The main roleplay platform, including Sandbox, World Runtime and the Forge.',
+    href: appUrl,
     access: 'stable',
   },
   {
@@ -36,6 +38,7 @@ export const projects: Project[] = [
     stage: 'CLOSED ALPHA',
     realm: 'WORLD',
     desc: 'A living world project built around consequence, survival and story.',
+    href: `${appUrl.replace(/\/$/, '')}/forge/worlds/enter/bitterroot/`,
     access: 'alpha',
   },
   {
