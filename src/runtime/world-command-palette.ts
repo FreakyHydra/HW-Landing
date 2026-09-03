@@ -18,6 +18,7 @@ const COMMANDS: CommandItem[] = [
       { label: 'Reroll world reply', value: '/reroll', description: 'Regenerate the latest world response.' },
       { label: 'Reroll player turn', value: '/reroll me', description: 'Regenerate the latest persona turn.' },
       { label: 'Impersonate', value: '/impersonate ', description: 'Write a persona turn. Add an optional direction.' },
+      { label: 'Force character turn', value: '/character ', description: 'Make a named character take the next turn without another persona action.' },
       {
         label: 'Response length', description: 'Choose how long replies usually are', children: [
           { label: 'Quick', value: '/length quick', description: 'About 1-2 paragraphs.' },
