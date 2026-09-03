@@ -4,7 +4,23 @@ import { escapeHtml } from '../app/html.ts'
 import { cleanWorldRuntimeReply, WorldRuntimeNovelAiProvider, WORLD_RUNTIME_NAI_MODELS, type WorldRuntimeNovelAiModel } from '../runtime/novelai.ts'
 import { clearNovelAiToken, getNovelAiRuntimeSettings, saveNovelAiRuntimeSettings } from '../runtime/novelai-settings.ts'
 import { LocalRelationshipRepository, DEFAULT_PERSONA_ID, evaluateRelationshipTurn } from '../runtime/relationship-v2.ts'
-import { compileWorldRuntimePrompt, LocalWorldRuntimeSessionRepository, resolveRuntimeInhabitants, type WorldRuntimeMessage } from '../runtime/world-brain.ts'
+import { compileWorldRuntimePrompt, LocalWorldRuntimeSessionRepository, resolveRuntimeInhabitants, type RuntimeInhabitant, type WorldRuntimeMessage } from '../runtime/world-brain.ts'
+
+function directlyAddressedInhabitants(value: string, inhabitants: RuntimeInhabitant[]): RuntimeInhabitant[] {
+  const lower = value.toLowerCase()
+  const firstNameCounts = new Map<string, number>()
+  for (const inhabitant of inhabitants) {
+    const first = inhabitant.name.trim().split(/\s+/)[0]?.toLowerCase()
+    if (first) firstNameCounts.set(first, (firstNameCounts.get(first) || 0) + 1)
+  }
+  return inhabitants.filter((inhabitant) => {
+    const full = inhabitant.name.toLowerCase()
+    if (new RegExp(`\\b${full.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(lower)) return true
+    const first = inhabitant.name.trim().split(/\s+/)[0]?.toLowerCase()
+    if (!first || firstNameCounts.get(first) !== 1) return false
+    return new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(lower)
+  })
+}
 
 export async function renderWorldRuntime(root: HTMLElement, context: AppContext, navigate: Navigate, id: string): Promise<void> {
   const world = (await context.worlds.get(id)) ?? (await context.publicWorlds.get(id))
@@ -222,8 +238,10 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
 
     try {
       const personaId = persona?.id || DEFAULT_PERSONA_ID
-      const relationshipMap = Object.fromEntries(inhabitants.map((inhabitant) => [inhabitant.id, relationshipRepository.get(inhabitant.id, personaId)]))
-      const prompt = compileWorldRuntimePrompt({ world, session, playerTurn: value, inhabitants, persona, relationships: relationshipMap })
+      const addressed = directlyAddressedInhabitants(value, inhabitants)
+      const turnInhabitants = addressed.length ? addressed : inhabitants
+      const relationshipMap = Object.fromEntries(turnInhabitants.map((inhabitant) => [inhabitant.id, relationshipRepository.get(inhabitant.id, personaId)]))
+      const prompt = compileWorldRuntimePrompt({ world, session, playerTurn: value, inhabitants: turnInhabitants, persona, relationships: relationshipMap })
       const nai = getNovelAiRuntimeSettings()
       const reply = await provider.generate({
         prompt,
@@ -236,8 +254,8 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       appendMessage(worldMessage)
 
       const combined = `${value}\n${reply}`.toLowerCase()
-      for (const inhabitant of inhabitants) {
-        if (!combined.includes(inhabitant.name.toLowerCase())) continue
+      for (const inhabitant of turnInhabitants) {
+        if (!combined.includes(inhabitant.name.toLowerCase()) && !value.toLowerCase().includes(inhabitant.name.split(/\s+/)[0].toLowerCase())) continue
         const previous = relationshipRepository.get(inhabitant.id, personaId)
         relationshipRepository.apply(evaluateRelationshipTurn({
           characterId: inhabitant.id,
