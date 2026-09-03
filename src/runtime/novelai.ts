@@ -8,6 +8,22 @@ export type WorldRuntimeGenerationRequest = {
   temperature?: number
 }
 
+export function cleanWorldRuntimeReply(raw: string): string {
+  let text = raw.trim()
+
+  // Some reasoning-capable models can expose hidden scratch text before a
+  // closing think tag even when the opening tag is omitted by the upstream.
+  const lastThinkClose = text.toLowerCase().lastIndexOf('</think>')
+  if (lastThinkClose >= 0) text = text.slice(lastThinkClose + '</think>'.length).trim()
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
+  text = text.replace(/<think>[\s\S]*$/gi, '').trim()
+
+  // Keep the runtime as prose rather than a model/debug transcript.
+  text = text.replace(/^\s*(?:assistant|world runtime|response)\s*:\s*/i, '')
+  text = text.replace(/^\s*```(?:text|markdown)?\s*/i, '').replace(/\s*```\s*$/i, '')
+  return text.trim()
+}
+
 export class WorldRuntimeNovelAiProvider {
   async generate(request: WorldRuntimeGenerationRequest, persistentToken = ''): Promise<string> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -18,8 +34,8 @@ export class WorldRuntimeNovelAiProvider {
       body: JSON.stringify({
         prompt: request.prompt,
         model: request.model || 'xialong-v1',
-        maxTokens: request.maxTokens ?? 850,
-        temperature: request.temperature ?? 0.9,
+        maxTokens: request.maxTokens ?? 520,
+        temperature: request.temperature ?? 0.82,
       }),
     })
     if (!response.ok) {
@@ -29,6 +45,8 @@ export class WorldRuntimeNovelAiProvider {
     }
     const payload = await response.json() as { reply?: unknown }
     if (typeof payload.reply !== 'string' || !payload.reply.trim()) throw new Error('NovelAI returned an empty roleplay reply.')
-    return payload.reply.trim()
+    const reply = cleanWorldRuntimeReply(payload.reply)
+    if (!reply) throw new Error('NovelAI returned no usable roleplay text after runtime cleanup.')
+    return reply
   }
 }
