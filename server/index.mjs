@@ -86,6 +86,50 @@ app.post('/api/image/novelai', express.json({ limit: '2mb' }), async (req, res) 
   }
 })
 
+app.post('/api/roleplay/novelai', express.json({ limit: '1mb' }), async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  const token = String(req.get('X-NovelAI-Token') || process.env.NOVELAI_API_TOKEN || '').trim()
+  if (!token) return res.status(401).json({ error: 'NovelAI Persistent API token is required. In the world runtime use /nai token YOUR_TOKEN.' })
+
+  const body = req.body
+  const allowedModels = new Set(['xialong-v1', 'glm-4-6'])
+  if (!body || typeof body !== 'object') return res.status(400).json({ error: 'Invalid roleplay request.' })
+  const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
+  const model = typeof body.model === 'string' ? body.model : 'xialong-v1'
+  if (!prompt || prompt.length > 120000 || !allowedModels.has(model)) return res.status(400).json({ error: 'Invalid NovelAI roleplay prompt or model.' })
+  const maxTokens = Math.max(64, Math.min(1600, Number(body.maxTokens) || 850))
+  const temperature = Math.max(0.1, Math.min(1.5, Number(body.temperature) || 0.9))
+
+  try {
+    const response = await fetch('https://text.novelai.net/oa/v1/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        prompt,
+        max_tokens: maxTokens,
+        temperature,
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(120000),
+    })
+    const text = await response.text()
+    if (!response.ok) return res.status(response.status).json({ error: text.slice(0, 1200) || `NovelAI returned HTTP ${response.status}.` })
+    let payload
+    try { payload = JSON.parse(text) } catch { return res.status(502).json({ error: 'NovelAI returned an invalid response.' }) }
+    const first = Array.isArray(payload?.choices) ? payload.choices[0] : undefined
+    const reply = typeof first?.text === 'string' ? first.text : typeof first?.message?.content === 'string' ? first.message.content : ''
+    if (!reply.trim()) return res.status(502).json({ error: 'NovelAI returned an empty reply.' })
+    return res.json({ reply: reply.trim() })
+  } catch (error) {
+    console.error('NovelAI roleplay proxy failed:', error instanceof Error ? error.message : error)
+    return res.status(502).json({ error: 'NovelAI roleplay generation could not be reached.' })
+  }
+})
+
 app.get('/api/session', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   if (!authReady) return res.json({ authenticated: false })
