@@ -17,7 +17,10 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
   const sessionRepository = new LocalWorldRuntimeSessionRepository()
   const relationshipRepository = new LocalRelationshipRepository()
   const provider = new WorldRuntimeNovelAiProvider()
-  const session = sessionRepository.get(world.id) ?? sessionRepository.create(world)
+  const freshSession = new URLSearchParams(location.search).get('new') === '1'
+  const session = freshSession
+    ? sessionRepository.reset(world)
+    : sessionRepository.get(world.id) ?? sessionRepository.create(world)
   const persona = session.personaId ? personas.find((item) => item.id === session.personaId) : personas[0]
   if (!session.personaId && persona) {
     session.personaId = persona.id
@@ -26,8 +29,6 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
   const inhabitants = resolveRuntimeInhabitants(world, characters, session.currentLocationId)
   const inhabitantNames = inhabitants.map((inhabitant) => inhabitant.name)
 
-  // Migrate previously saved transcript-style replies so old formatting does
-  // not keep teaching the model to emit labels and [action blocks].
   let historyChanged = false
   session.history = session.history.map((message) => {
     if (message.sender !== 'world') return message
@@ -80,6 +81,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
 
   const appendSystem = (text: string) => appendMessage({ id: crypto.randomUUID(), sender: 'system', text, createdAt: new Date().toISOString() }, false)
   session.history.forEach((message) => appendMessage(message, false))
+  if (freshSession) appendSystem('New world session started. World canon and relationship state were kept.')
 
   const particles = Array.from({ length: 72 }, () => ({
     x: Math.random(), y: Math.random(),
@@ -150,6 +152,11 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
     const command = value.trim()
     const lower = command.toLowerCase()
     if (lower === '/exit' || lower === '/home' || lower === '/leave') { exitWorld(); return true }
+    if (lower === '/new') {
+      sessionRepository.reset(world)
+      navigate(`/roleplay/world/${encodeURIComponent(world.id)}/`)
+      return true
+    }
     if (lower === '/clear') {
       session.history = []
       session.updatedAt = new Date().toISOString()
@@ -192,7 +199,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       return true
     }
     if (lower === '/help') {
-      appendSystem('/exit · /clear · /where · /who · NovelAI configuration is available in Settings')
+      appendSystem('/exit · /new · /clear · /where · /who · NovelAI configuration is available in Settings')
       return true
     }
     return false
