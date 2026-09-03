@@ -24,6 +24,35 @@ function formatSessionAge(value: string): string {
   return `${days}d ago`
 }
 
+function backupFilename(world: WorldRecord): string {
+  const safeName = (world.identity.name || 'world')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'world'
+  const date = new Date().toISOString().slice(0, 10)
+  return `${safeName}-${date}.hw-world.json`
+}
+
+function downloadWorldBackup(world: WorldRecord): void {
+  const payload = {
+    format: 'hw-world-backup',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    world,
+    runtimeSession: savedSession(world.id) ?? null,
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = backupFilename(world)
+  document.body.append(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+}
+
 function worldCard(world: WorldRecord, source: 'public' | 'local', selection?: { tab: string; action: string }): string {
   const worldId = encodeURIComponent(world.id)
   const manageUrl = `/forge/worlds/edit/${worldId}/${selection ? `?tab=${selection.tab}` : ''}`
@@ -35,7 +64,7 @@ function worldCard(world: WorldRecord, source: 'public' | 'local', selection?: {
     : `<a class="machine-button primary" href="${enterUrl}" data-nav>OPEN WORLD</a>`
   const actions = source === 'public'
     ? `${runtimeActions}<button class="machine-button" type="button" data-copy-public-world="${worldId}">COPY TO LIBRARY</button>`
-    : `${runtimeActions}<a class="machine-button" href="${manageUrl}" data-nav>${selection?.action || 'MANAGE WORLD'}</a>`
+    : `${runtimeActions}<a class="machine-button" href="${manageUrl}" data-nav>${selection?.action || 'MANAGE WORLD'}</a><button class="machine-button" type="button" data-download-world="${worldId}">DOWNLOAD BACKUP</button>`
 
   return `
     <article class="world-card instrument-panel compact-world-card">
@@ -101,6 +130,16 @@ export async function renderWorldLibrary(root: HTMLElement, context: AppContext,
       const accepted = window.confirm(`Start ${worldName} over?\n\nThis deletes only this world's current conversation. Other opened worlds are kept.`)
       if (!accepted) return
       navigate(`/roleplay/world/${encodeURIComponent(worldId)}/?new=1`)
+    })
+  })
+
+  root.querySelectorAll<HTMLButtonElement>('[data-download-world]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const worldId = decodeURIComponent(button.dataset.downloadWorld || '')
+      const world = worlds.find((item) => item.id === worldId)
+      if (!world) return toast(root, 'World could not be found for backup.', 'error')
+      downloadWorldBackup(world)
+      toast(root, `${world.identity.name} backup downloaded.`, 'normal')
     })
   })
 
