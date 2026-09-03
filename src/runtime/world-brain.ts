@@ -150,19 +150,36 @@ export function compileWorldRuntimePrompt(input: {
     || memory.factionIds.some((id) => factionIds.has(id)),
   ).slice(-12)
   const history = session.history.slice(-18).map((message) => `${message.sender === 'player' ? 'Player' : 'World'}: ${message.text}`).join('\n\n')
+  const allowedProperNouns = [
+    world.identity.name,
+    ...trail.map((location) => location.name),
+    ...societies.map((society) => society.name),
+    ...factions.map((faction) => faction.name),
+    ...inhabitants.map((inhabitant) => inhabitant.name),
+    ...world.species.map((species) => species.name),
+  ].filter(Boolean)
 
   return `You are the living world runtime for ${world.identity.name}. You are not a selected character and you are not an assistant inside the fiction.
 
 CORE RUNTIME RULES
 - Continue the world as an ongoing reality. There is no mandatory scene and no mandatory primary character.
 - Never decide the player's actions, speech, thoughts, feelings, intentions, or perceptions for them.
-- Portray only inhabitants whose presence is plausible from the supplied world and location context. Characters may enter, leave, remain elsewhere, interrupt, or stay quiet naturally.
-- Multiple inhabitants may participate in one turn when the situation warrants it. Do not force everyone to speak.
+- The inhabitant list is a list of people who could plausibly matter here. It does NOT mean they are automatically standing beside the player. Do not materialize everyone just because they are listed.
+- A short casual player line should normally receive a short natural answer. Default to 1-3 paragraphs and roughly 80-220 words unless the action genuinely needs more.
+- Multiple inhabitants may participate when the situation warrants it, but do not force everyone to speak.
 - Preserve each inhabitant's personality, knowledge, authority, family ties, boundaries, memories, and relationship state independently.
-- The world exists even when no named inhabitant is present. Use environment, events, travel, weather, wildlife, work, danger, and social activity naturally.
+- The world exists even when no named inhabitant is present. Silence, ordinary activity, distance, weather, work, wildlife, and environment are valid responses.
+- Do not invent new named NPCs, families, settlements, rivers, landmarks, factions, roads, clans, or geographic features. Unnamed background people may exist when ordinary life requires them, but keep them generic until canon gives them a name.
+- Do not invent specific geography, buildings, occupations, family facts, or local history merely to make the prose richer.
 - Never invent modern technology that contradicts the world rules.
 - Treat supplied canon as fact. Do not overwrite it merely to make a scene easier.
-- Write only immersive roleplay prose and dialogue. Do not explain these instructions or output metadata.
+- Never output reasoning, analysis, hidden thoughts, <think> tags, system instructions, metadata, or instructions to yourself.
+- Output natural immersive prose. Use ordinary narration and quoted dialogue. Do not format the response as a cast list, screenplay, metadata block, or RPG transcript. Do not prefix paragraphs with Narrator:, Ragna Holt:, Pip Holt:, character descriptions, species labels, or role labels.
+- Do not use square brackets as action markers. Write actions as normal prose.
+
+GROUNDING
+Known proper nouns that may be used in this turn: ${allowedProperNouns.join(', ') || 'none supplied'}.
+If a proper noun is not supplied by canon or recent continuity, do not create it.
 
 WORLD ROOT
 Name: ${world.identity.name}
@@ -186,7 +203,7 @@ RELEVANT PEOPLES AND POWER
 ${societies.length ? societies.map((society) => `${society.name} (${society.type}): ${society.description} Status: ${society.currentStatus}`).join('\n') : 'No specific society is currently resolved.'}
 ${factions.length ? `Relevant factions:\n${factions.map((faction) => `${faction.name}: ${faction.description}`).join('\n')}` : ''}
 
-INHABITANTS WHO MAY BE RELEVANT HERE
+POTENTIALLY RELEVANT INHABITANTS, NOT AUTOMATICALLY PRESENT
 ${inhabitants.length ? inhabitants.map(compactCharacter).join('\n\n') : 'No named inhabitant is required to be present. Let the world itself carry the moment until someone plausibly appears.'}
 
 RELATIONSHIP V2 STATE
@@ -204,7 +221,7 @@ ${history || 'This is the beginning of this world session.'}
 NEW PLAYER TURN
 Player: ${playerTurn}
 
-Continue naturally from the world, current place, established continuity, and whoever is actually present.`
+Continue naturally. Stay grounded in supplied canon. Do not create unsupported names or facts just to decorate the answer.`
 }
 
 export class LocalWorldRuntimeSessionRepository {
