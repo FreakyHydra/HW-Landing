@@ -72,7 +72,7 @@ export function cleanWorldRuntimeReply(raw: string, characterNames: string[] = [
 }
 
 export class WorldRuntimeNovelAiProvider {
-  async generate(request: WorldRuntimeGenerationRequest, persistentToken = ''): Promise<string> {
+  async generateRaw(request: WorldRuntimeGenerationRequest, persistentToken = ''): Promise<string> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (persistentToken.trim()) headers['X-NovelAI-Token'] = persistentToken.trim()
     const response = await fetch('/api/roleplay/novelai', {
@@ -92,7 +92,12 @@ export class WorldRuntimeNovelAiProvider {
     }
     const payload = await response.json() as { reply?: unknown }
     if (typeof payload.reply !== 'string' || !payload.reply.trim()) throw new Error('NovelAI returned an empty roleplay reply.')
-    const reply = cleanWorldRuntimeReply(payload.reply, request.characterNames)
+    return payload.reply
+  }
+
+  async generate(request: WorldRuntimeGenerationRequest, persistentToken = ''): Promise<string> {
+    const raw = await this.generateRaw(request, persistentToken)
+    const reply = cleanWorldRuntimeReply(raw, request.characterNames)
     if (!reply) throw new Error('NovelAI returned no usable roleplay text after runtime cleanup.')
     return reply
   }
