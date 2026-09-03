@@ -84,7 +84,21 @@ function findTarget(name: string, inhabitants: RuntimeInhabitant[]): RuntimeInha
   return partial.length === 1 ? partial[0] : undefined
 }
 
-async function forceCharacterTurn(name: string): Promise<void> {
+function contextTarget(inhabitants: RuntimeInhabitant[], history: WorldRuntimeMessage[]): RuntimeInhabitant | undefined {
+  for (const message of [...history].reverse()) {
+    const text = message.text.toLowerCase()
+    const exact = inhabitants.filter((item) => text.includes(item.name.toLowerCase()))
+    if (exact.length === 1) return exact[0]
+    const first = inhabitants.filter((item) => {
+      const name = item.name.trim().split(/\s+/)[0]?.toLowerCase()
+      return name ? new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text) : false
+    })
+    if (first.length === 1) return first[0]
+  }
+  return inhabitants.length === 1 ? inhabitants[0] : undefined
+}
+
+async function forceCharacterTurn(name = ''): Promise<void> {
   const runtime = document.querySelector<HTMLElement>('.world-runtime[data-world-id]')
   const form = document.querySelector<HTMLFormElement>('.world-runtime-prompt')
   const input = form?.querySelector<HTMLTextAreaElement>('textarea')
@@ -102,32 +116,32 @@ async function forceCharacterTurn(name: string): Promise<void> {
   const session = sessionRepository.get(worldId)
   if (!session) return appendSystem('No active world session was found.')
   const inhabitants = resolveRuntimeInhabitants(world, characters, session.currentLocationId)
+  if (!inhabitants.length) return appendSystem('No named character is currently resolved here.')
 
-  if (!name.trim()) {
-    appendSystem(inhabitants.length ? `Usage: /character NAME. Available here: ${inhabitants.map((item) => item.name).join(', ')}` : 'No named character is currently resolved here.')
+  const explicitTarget = name.trim() ? findTarget(name, inhabitants) : undefined
+  if (name.trim() && !explicitTarget) {
+    appendSystem(`Could not uniquely resolve “${name}”. Available here: ${inhabitants.map((item) => item.name).join(', ')}`)
     return
   }
-
-  const target = findTarget(name, inhabitants)
-  if (!target) {
-    appendSystem(inhabitants.length ? `Could not uniquely resolve “${name}”. Available here: ${inhabitants.map((item) => item.name).join(', ')}` : 'No named character is currently resolved here.')
-    return
-  }
+  const inferredTarget = explicitTarget ?? contextTarget(inhabitants, session.history)
+  const turnCandidates = inferredTarget ? [inferredTarget] : inhabitants
 
   const persona = session.personaId ? personas.find((item) => item.id === session.personaId) : personas[0]
   const personaId = persona?.id || DEFAULT_PERSONA_ID
-  const relationship = new LocalRelationshipRepository().get(target.id, personaId)
+  const relationships = Object.fromEntries(turnCandidates.map((item) => [item.id, new LocalRelationshipRepository().get(item.id, personaId)]))
   const lastPlayer = [...session.history].reverse().find((message) => message.sender === 'player')
-  const playerTurn = lastPlayer?.text || 'The persona waits without taking another action.'
+  const playerTurn = lastPlayer?.text || 'Continue from the established scene without adding a new player action.'
   const basePrompt = compileWorldRuntimePrompt({
     world,
     session,
     playerTurn,
-    inhabitants: [target],
+    inhabitants: turnCandidates,
     persona,
-    relationships: { [target.id]: relationship },
+    relationships,
   })
-  const prompt = `${basePrompt}\n\nFORCED CHARACTER TURN\n- The player has NOT taken another action after the established continuity.\n- ${target.name} must now take a natural turn in the scene.\n- Give ${target.name} an actual response, action, reaction, or dialogue appropriate to their personality, knowledge, relationship state, and current situation.\n- Do not make the player act or speak.\n- Do not explain that this turn was forced.`
+  const prompt = inferredTarget
+    ? `${basePrompt}\n\nNEXT CHARACTER TURN\n${inferredTarget.name} is the character whose turn is contextually due. Continue naturally from the existing scene. Do not require another player action first.`
+    : `${basePrompt}\n\nNEXT CHARACTER TURN\nChoose whichever currently relevant character is most naturally due to respond next from the recent context. Continue the scene without requiring another player action first. Do not explain the selection.`
 
   const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')
   const impersonate = form.querySelector<HTMLButtonElement>('.world-runtime-impersonate')
@@ -149,7 +163,7 @@ async function forceCharacterTurn(name: string): Promise<void> {
     sessionRepository.save(session)
     appendWorldMessage(message)
   } catch (error) {
-    appendSystem(error instanceof Error ? error.message : `Could not force ${target.name}'s turn.`)
+    appendSystem(error instanceof Error ? error.message : 'Could not generate the next character turn.')
   } finally {
     input.disabled = false
     if (submit) submit.disabled = false
