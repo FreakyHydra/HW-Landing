@@ -69,9 +69,9 @@ export class LocalPersonaRepository extends LocalRepository<Persona> implements 
   }
 }
 
-function pendingTimeWeather(worldId: string): WorldTimeWeather | undefined {
+function pendingTimeWeather(key: string): WorldTimeWeather | undefined {
   try {
-    const value = localStorage.getItem(`hw.forge.world-time-weather.${worldId}`)
+    const value = localStorage.getItem(`hw.forge.world-time-weather.${key}`)
     return value ? JSON.parse(value) as WorldTimeWeather : undefined
   } catch {
     return undefined
@@ -87,9 +87,12 @@ export class LocalWorldRepository extends LocalRepository<WorldRecord> implement
   }
   override async save(world: WorldRecord): Promise<void> {
     const normalized = normalizeWorldRecord(world)
-    const pending = pendingTimeWeather(normalized.id)
+    const pending = pendingTimeWeather(normalized.id) ?? pendingTimeWeather('__new__')
     if (pending) normalized.timeWeather = structuredClone(pending)
     await super.save(normalized)
-    if (pending) localStorage.removeItem(`hw.forge.world-time-weather.${normalized.id}`)
+    if (pending) {
+      localStorage.removeItem(`hw.forge.world-time-weather.${normalized.id}`)
+      localStorage.removeItem('hw.forge.world-time-weather.__new__')
+    }
   }
 }
