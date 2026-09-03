@@ -5,19 +5,26 @@
 .world-runtime-identity{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;user-select:none}
 .world-runtime-identity span{max-width:80vw;color:rgba(244,238,232,.035);font-family:Georgia,"Times New Roman",serif;font-size:clamp(5rem,16vw,18rem);line-height:.8;letter-spacing:-.055em;text-align:center;white-space:nowrap}
 .world-runtime-story{position:absolute;z-index:2;top:clamp(26px,7vh,78px);bottom:118px;left:50%;width:min(900px,calc(100vw - 44px));transform:translateX(-50%);overflow-y:auto;overscroll-behavior:contain;padding:18px 16px 80px;scrollbar-width:thin;mask-image:linear-gradient(to bottom,transparent 0,#000 4%,#000 90%,transparent 100%)}
-.world-runtime-message{max-width:760px;margin:0 auto 26px;white-space:pre-wrap;font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.02rem,1.25vw,1.18rem);line-height:1.78;text-shadow:0 2px 18px rgba(0,0,0,.72)}
+.world-runtime-message{position:relative;max-width:760px;margin:0 auto 26px;white-space:pre-wrap;font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.02rem,1.25vw,1.18rem);line-height:1.78;text-shadow:0 2px 18px rgba(0,0,0,.72)}
 .world-runtime-message.world{color:rgba(241,234,226,.92)}
 .world-runtime-message.player{max-width:700px;color:rgba(216,176,140,.72);font-family:inherit;font-size:.9rem;line-height:1.55;text-align:right}
 .world-runtime-message.system{margin-bottom:16px;color:rgba(201,135,82,.72);font-family:inherit;font-size:.72rem;line-height:1.4;letter-spacing:.06em;text-align:center}
-.world-runtime-prompt{position:absolute;z-index:3;left:50%;bottom:max(24px,env(safe-area-inset-bottom));width:min(920px,calc(100vw - 36px));min-height:54px;display:grid;grid-template-columns:28px minmax(0,1fr) 42px;align-items:end;gap:8px;padding:8px 9px 8px 15px;transform:translateX(-50%);border:1px solid rgba(219,153,102,.25);border-radius:18px;background:rgba(8,7,6,.78);box-shadow:0 18px 55px rgba(0,0,0,.5),inset 0 1px rgba(255,255,255,.025);backdrop-filter:blur(18px)}
+.world-runtime-message-actions{position:absolute;top:100%;display:flex;gap:4px;opacity:0;transition:opacity .15s ease}
+.world-runtime-message.world .world-runtime-message-actions{left:0}
+.world-runtime-message.player .world-runtime-message-actions{right:0}
+.world-runtime-message:hover .world-runtime-message-actions,.world-runtime-message:focus-within .world-runtime-message-actions{opacity:.72}
+.world-runtime-message-actions button{width:26px;height:24px;border:0;border-radius:7px;background:rgba(10,8,7,.72);color:rgba(218,146,86,.8);cursor:pointer;font-size:.9rem}
+.world-runtime-message-actions button:hover,.world-runtime-message-actions button:focus-visible{background:var(--accent-surface);color:var(--accent-hover);outline:none}
+.world-runtime-prompt{position:absolute;z-index:3;left:50%;bottom:max(24px,env(safe-area-inset-bottom));width:min(920px,calc(100vw - 36px));min-height:54px;display:grid;grid-template-columns:28px minmax(0,1fr) 46px 42px;align-items:end;gap:8px;padding:8px 9px 8px 15px;transform:translateX(-50%);border:1px solid rgba(219,153,102,.25);border-radius:18px;background:rgba(8,7,6,.78);box-shadow:0 18px 55px rgba(0,0,0,.5),inset 0 1px rgba(255,255,255,.025);backdrop-filter:blur(18px)}
 .world-runtime-prompt:focus-within{border-color:rgba(225,170,119,.55);box-shadow:0 18px 55px rgba(0,0,0,.5),0 0 32px rgba(225,170,119,.08)}
 .world-runtime-prompt-mark{align-self:center;color:var(--accent-primary);font-family:Georgia,serif;font-size:1.45rem}
 .world-runtime-prompt textarea{width:100%;max-height:180px;resize:none;overflow-y:auto;border:0;outline:0;padding:9px 2px;color:var(--text-primary);background:transparent;font:inherit;line-height:1.5;scrollbar-width:thin}
 .world-runtime-prompt textarea::placeholder{color:var(--text-faint)}
 .world-runtime-prompt textarea:disabled{opacity:.55}
 .world-runtime-prompt button{width:42px;height:42px;display:grid;place-items:center;align-self:end;border:0;border-radius:12px;color:var(--accent-primary);background:transparent;font-size:1.2rem;cursor:pointer}
+.world-runtime-prompt .world-runtime-impersonate{width:46px;font:600 .62rem/1 inherit;letter-spacing:.08em}
 .world-runtime-prompt button:hover,.world-runtime-prompt button:focus-visible{background:var(--accent-surface);color:var(--accent-hover)}
 .world-runtime-prompt button:disabled{opacity:.35;cursor:wait}
 @keyframes world-atmosphere-drift{0%{transform:translate3d(-2%,-1%,0) scale(1)}100%{transform:translate3d(3%,2%,0) scale(1.08)}}
 @media (prefers-reduced-motion:reduce){.world-runtime-atmosphere{animation:none}}
-@media (max-width:700px){.world-runtime-story{top:18px;bottom:94px;width:calc(100vw - 18px);padding-left:7px;padding-right:7px}.world-runtime-message{font-size:1rem;line-height:1.65}.world-runtime-prompt{bottom:max(12px,env(safe-area-inset-bottom));width:calc(100vw - 20px);grid-template-columns:22px minmax(0,1fr) 40px;padding-left:10px}.world-runtime-identity span{font-size:20vw}}
+@media (max-width:700px){.world-runtime-story{top:18px;bottom:94px;width:calc(100vw - 18px);padding-left:7px;padding-right:7px}.world-runtime-message{font-size:1rem;line-height:1.65}.world-runtime-message-actions{opacity:.55}.world-runtime-prompt{bottom:max(12px,env(safe-area-inset-bottom));width:calc(100vw - 20px);grid-template-columns:22px minmax(0,1fr) 42px 40px;padding-left:10px}.world-runtime-prompt .world-runtime-impersonate{width:42px}.world-runtime-identity span{font-size:20vw}}
