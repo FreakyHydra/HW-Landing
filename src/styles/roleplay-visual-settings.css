@@ -1,0 +1,6 @@
+.roleplay-color-settings{gap:12px}
+.roleplay-color-field{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px}
+.roleplay-color-input{display:flex;align-items:center;gap:10px}
+.roleplay-color-input input[type="color"]{width:44px;height:36px;padding:3px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--surface-control);cursor:pointer}
+.roleplay-color-input code{min-width:70px;color:var(--text-muted);font-size:.68rem;text-align:right}
+@media(max-width:620px){.roleplay-color-field{grid-template-columns:1fr}.roleplay-color-input{justify-content:space-between}.roleplay-color-input code{text-align:left}}
