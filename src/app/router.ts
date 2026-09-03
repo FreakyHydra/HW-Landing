@@ -8,6 +8,7 @@ import { renderPersonas } from '../views/personas'
 import { renderPlaceholder } from '../views/placeholders'
 import { renderWorldEditor } from '../views/world-editor'
 import { renderWorldLibrary, renderWorldSelectionForCharacter } from '../views/world-library'
+import { renderWorldRuntime } from '../views/world-runtime'
 import { renderSettings } from '../views/settings'
 import { bindShell } from './shell'
 
@@ -36,6 +37,7 @@ export class AppRouter {
   private async render(): Promise<void> {
     const path = location.pathname.replace(/\/+/g, '/')
     const navigate = (next: string) => this.navigate(next)
+    let usesShell = true
     if (path === '/') await renderHome(this.root)
     else if (path === '/forge/' || path === '/forge') await renderForge(this.root, this.context)
     else if (path === '/forge/images/' || path === '/forge/images') await renderImageStudio(this.root, this.context)
@@ -55,12 +57,16 @@ export class AppRouter {
     else if (path === '/forge/worlds/' || path === '/forge/worlds') await renderWorldLibrary(this.root, this.context, navigate)
     else if (path === '/forge/worlds/create/' || path === '/forge/worlds/create') await renderWorldEditor(this.root, this.context, navigate)
     else if (/^\/forge\/worlds\/edit\/[^/]+\/?$/.test(path)) await renderWorldEditor(this.root, this.context, navigate, decodeURIComponent(path.split('/')[4]))
+    else if (/^\/roleplay\/world\/[^/]+\/?$/.test(path)) {
+      usesShell = false
+      await renderWorldRuntime(this.root, this.context, navigate, decodeURIComponent(path.split('/')[3]))
+    }
     else if (path === '/forge/lore/') await renderPlaceholder(this.root, 'Lore Workshop', 'WORLD-ROOTED LORE', 'Lore is authored inside a world so its cultures, locations, families and history remain connected. Open a world to continue.')
-    else if (path.startsWith('/roleplay')) await renderPlaceholder(this.root, 'Roleplay', 'World runtime pending', 'The new roleplay area will enter a world directly. The world-first runtime has not been implemented yet.')
+    else if (path.startsWith('/roleplay')) await renderPlaceholder(this.root, 'Roleplay', 'Choose a world', 'Enter roleplay from a world in the World Library.')
     else if (path.startsWith('/archive')) await renderPlaceholder(this.root, 'Archive', 'History without loss', 'Conversation branches, revisions and exported records will gather here in a later phase.')
     else if (path.startsWith('/settings')) await renderSettings(this.root)
     else await renderPlaceholder(this.root, 'Path not found', '404', 'This route has not been forged yet.')
-    bindShell(this.root, navigate)
+    if (usesShell) bindShell(this.root, navigate)
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
 }
