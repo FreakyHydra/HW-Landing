@@ -1,7 +1,7 @@
 import '../styles/world-runtime.css'
 import type { AppContext, Navigate } from '../app/router.ts'
 import { escapeHtml } from '../app/html.ts'
-import { WorldRuntimeNovelAiProvider, WORLD_RUNTIME_NAI_MODELS, type WorldRuntimeNovelAiModel } from '../runtime/novelai.ts'
+import { cleanWorldRuntimeReply, WorldRuntimeNovelAiProvider, WORLD_RUNTIME_NAI_MODELS, type WorldRuntimeNovelAiModel } from '../runtime/novelai.ts'
 import { clearNovelAiToken, getNovelAiRuntimeSettings, saveNovelAiRuntimeSettings } from '../runtime/novelai-settings.ts'
 import { LocalRelationshipRepository, DEFAULT_PERSONA_ID, evaluateRelationshipTurn } from '../runtime/relationship-v2.ts'
 import { compileWorldRuntimePrompt, LocalWorldRuntimeSessionRepository, resolveRuntimeInhabitants, type WorldRuntimeMessage } from '../runtime/world-brain.ts'
@@ -24,6 +24,18 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
     sessionRepository.save(session)
   }
   const inhabitants = resolveRuntimeInhabitants(world, characters, session.currentLocationId)
+  const inhabitantNames = inhabitants.map((inhabitant) => inhabitant.name)
+
+  // Migrate previously saved transcript-style replies so old formatting does
+  // not keep teaching the model to emit labels and [action blocks].
+  let historyChanged = false
+  session.history = session.history.map((message) => {
+    if (message.sender !== 'world') return message
+    const cleaned = cleanWorldRuntimeReply(message.text, inhabitantNames)
+    if (cleaned !== message.text) historyChanged = true
+    return { ...message, text: cleaned || message.text }
+  })
+  if (historyChanged) sessionRepository.save(session)
 
   root.innerHTML = `
     <main class="world-runtime" data-world-id="${escapeHtml(world.id)}" aria-label="${escapeHtml(world.identity.name)}">
@@ -138,6 +150,14 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
     const command = value.trim()
     const lower = command.toLowerCase()
     if (lower === '/exit' || lower === '/home' || lower === '/leave') { exitWorld(); return true }
+    if (lower === '/clear') {
+      session.history = []
+      session.updatedAt = new Date().toISOString()
+      sessionRepository.save(session)
+      story.replaceChildren()
+      appendSystem('Current world conversation cleared. World canon and relationships were not reset.')
+      return true
+    }
     if (lower === '/where') {
       const location = world.locations.find((item) => item.id === session.currentLocationId)
       appendSystem(location ? `${location.name} · ${location.kind}` : 'Your exact location is not established.')
@@ -172,7 +192,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       return true
     }
     if (lower === '/help') {
-      appendSystem('/exit · /where · /who · NovelAI configuration is available in Settings')
+      appendSystem('/exit · /clear · /where · /who · NovelAI configuration is available in Settings')
       return true
     }
     return false
@@ -198,7 +218,13 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       const relationshipMap = Object.fromEntries(inhabitants.map((inhabitant) => [inhabitant.id, relationshipRepository.get(inhabitant.id, personaId)]))
       const prompt = compileWorldRuntimePrompt({ world, session, playerTurn: value, inhabitants, persona, relationships: relationshipMap })
       const nai = getNovelAiRuntimeSettings()
-      const reply = await provider.generate({ prompt, model: nai.model, maxTokens: nai.maxTokens, temperature: nai.temperature }, nai.token)
+      const reply = await provider.generate({
+        prompt,
+        model: nai.model,
+        maxTokens: nai.maxTokens,
+        temperature: nai.temperature,
+        characterNames: inhabitantNames,
+      }, nai.token)
       const worldMessage: WorldRuntimeMessage = { id: crypto.randomUUID(), sender: 'world', text: reply, createdAt: new Date().toISOString() }
       appendMessage(worldMessage)
 
