@@ -30,7 +30,7 @@ app.use((req, res, next) => {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; img-src 'self' https://cdn.discordapp.com data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'",
+      "default-src 'self'; img-src 'self' blob: https://cdn.discordapp.com data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'",
     )
   }
   next()
@@ -39,6 +39,51 @@ app.use((req, res, next) => {
 app.get('/api/health', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   res.json({ ok: true, authReady, authSource: 'coda-sso' })
+})
+
+app.post('/api/image/novelai', express.json({ limit: '2mb' }), async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  const token = String(req.get('X-NovelAI-Token') || '').trim()
+  if (!token) return res.status(401).json({ error: 'NovelAI Persistent API token is required.' })
+
+  const payload = req.body
+  const allowedModels = new Set(['nai-diffusion-5-full', 'nai-diffusion-5-curated'])
+  if (!payload || typeof payload !== 'object' || !allowedModels.has(payload.model) || payload.action !== 'generate') {
+    return res.status(400).json({ error: 'Invalid NovelAI ImageGen V5 request.' })
+  }
+
+  const parameters = payload.parameters
+  if (!parameters || typeof parameters !== 'object' || parameters.n_samples !== 1) {
+    return res.status(400).json({ error: 'Forge currently supports one generated image per request.' })
+  }
+
+  try {
+    const response = await fetch('https://image.novelai.net/ai/generate-image', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/zip, application/octet-stream',
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(120000),
+    })
+
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, 1200)
+      console.error(`NovelAI ImageGen failed with HTTP ${response.status}`)
+      return res.status(response.status).json({ error: detail || `NovelAI ImageGen returned HTTP ${response.status}.` })
+    }
+
+    const bytes = Buffer.from(await response.arrayBuffer())
+    res.status(200)
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/zip')
+    res.setHeader('Content-Length', String(bytes.length))
+    return res.send(bytes)
+  } catch (error) {
+    console.error('NovelAI ImageGen proxy failed:', error instanceof Error ? error.message : error)
+    return res.status(502).json({ error: 'NovelAI ImageGen could not be reached.' })
+  }
 })
 
 app.get('/api/session', async (req, res) => {
