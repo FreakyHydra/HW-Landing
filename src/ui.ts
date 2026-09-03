@@ -67,7 +67,7 @@ export function mountUi(): UiRefs {
           <span><i class="legend-dot alpha"></i>Closed Alpha</span>
         </div>
       </div>
-      <div class="realm-divider"><span>CHOOSE A PATH</span></div>
+      <div class="realm-divider"><span>CHOOSE A DESTINATION</span></div>
       <div class="projects" id="projects"></div>
       <footer class="world-footer">
         <span>THE HOWLING WHISPERS</span>
@@ -119,7 +119,7 @@ export function renderProjects(grid: HTMLElement, session: Session) {
     const unlocked = hasAccess(access, project.access)
     const deployed = Boolean(project.href)
     const article = document.createElement('article')
-    article.className = `project ${unlocked ? 'unlocked' : 'locked'} ${deployed ? '' : 'undeployed'}`
+    article.className = `project ${project.primary ? 'primary' : 'secondary'} ${unlocked ? 'unlocked' : 'locked'} ${deployed ? '' : 'undeployed'}`
     article.style.setProperty('--i', String(index))
     article.dataset.tier = project.access
 
