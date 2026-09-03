@@ -1,7 +1,6 @@
 import type { CharacterRecord } from '../domain/character-record'
 import type { Persona } from '../domain/persona'
 import { normalizeWorldRecord, type WorldRecord } from '../domain/world.ts'
-import { createSkylerBitterrootPersona, SKYLER_BITTERROOT_PERSONA_ID } from './builtin-personas.ts'
 
 export interface CharacterRepository {
   list(): Promise<CharacterRecord[]>
@@ -64,10 +63,9 @@ export class LocalCharacterRepository extends LocalRepository<CharacterRecord> i
 export class LocalPersonaRepository extends LocalRepository<Persona> implements PersonaRepository {
   constructor() {
     super('hw.forge.personas.v1')
-    if (!this.records.has(SKYLER_BITTERROOT_PERSONA_ID)) {
-      this.records.set(SKYLER_BITTERROOT_PERSONA_ID, createSkylerBitterrootPersona())
-      this.persist()
-    }
+    // Remove the short-lived built-in Skyler seed from machines that loaded it.
+    // Imported/user-created personas use their own IDs and are left untouched.
+    if (this.records.delete('skyler-bitterroot')) this.persist()
   }
 }
 
