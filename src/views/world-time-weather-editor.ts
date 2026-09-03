@@ -2,22 +2,25 @@ import { defaultWorldTimeWeather, type WorldTimeWeather } from '../domain/world.
 
 const DRAFT_PREFIX = 'hw.forge.world-time-weather.'
 
-function currentWorldId(): string | undefined {
+function currentWorldKey(): string | undefined {
   const match = location.pathname.match(/\/forge\/worlds\/edit\/([^/]+)/)
-  return match ? decodeURIComponent(match[1]) : undefined
+  if (match) return decodeURIComponent(match[1])
+  if (/\/forge\/worlds\/create\/?$/.test(location.pathname)) return '__new__'
+  return undefined
 }
 
 function escapeValue(value: string | number): string {
   return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
 }
 
-function readWorldTimeWeather(worldId: string): WorldTimeWeather {
+function readWorldTimeWeather(worldKey: string): WorldTimeWeather {
   const defaults = defaultWorldTimeWeather()
   try {
-    const draft = JSON.parse(localStorage.getItem(`${DRAFT_PREFIX}${worldId}`) || 'null') as Partial<WorldTimeWeather> | null
+    const draft = JSON.parse(localStorage.getItem(`${DRAFT_PREFIX}${worldKey}`) || 'null') as Partial<WorldTimeWeather> | null
     if (draft) return { ...defaults, ...draft, seasons: draft.seasons ?? defaults.seasons }
+    if (worldKey === '__new__') return defaults
     const worlds = JSON.parse(localStorage.getItem('hw.forge.worlds.v1') || '[]') as Array<{ id: string; timeWeather?: Partial<WorldTimeWeather> }>
-    const world = worlds.find((item) => item.id === worldId)
+    const world = worlds.find((item) => item.id === worldKey)
     return { ...defaults, ...(world?.timeWeather ?? {}), seasons: world?.timeWeather?.seasons ?? defaults.seasons }
   } catch {
     return defaults
@@ -135,10 +138,10 @@ function mount(): void {
   const form = document.querySelector<HTMLFormElement>('#world-form')
   const tabs = document.querySelector<HTMLElement>('.world-tabs')
   if (!form || !tabs || tabs.querySelector('[data-world-tab="time-weather"]')) return
-  const worldId = currentWorldId()
-  if (!worldId) return
+  const worldKey = currentWorldKey()
+  if (!worldKey) return
 
-  let settings = readWorldTimeWeather(worldId)
+  let settings = readWorldTimeWeather(worldKey)
   const button = document.createElement('button')
   button.type = 'button'
   button.dataset.worldTab = 'time-weather'
@@ -161,14 +164,14 @@ function mount(): void {
 
   panel.addEventListener('input', () => {
     settings = readPanel(form, settings)
-    localStorage.setItem(`${DRAFT_PREFIX}${worldId}`, JSON.stringify(settings))
+    localStorage.setItem(`${DRAFT_PREFIX}${worldKey}`, JSON.stringify(settings))
     const status = document.querySelector<HTMLElement>('#world-save-status')
     if (status) status.textContent = 'UNSAVED WORLD CHANGES'
   })
 
   document.querySelector('#save-world')?.addEventListener('click', () => {
     settings = readPanel(form, settings)
-    localStorage.setItem(`${DRAFT_PREFIX}${worldId}`, JSON.stringify(settings))
+    localStorage.setItem(`${DRAFT_PREFIX}${worldKey}`, JSON.stringify(settings))
   }, { capture: true })
 
   if (new URLSearchParams(location.search).get('tab') === 'time-weather') activate()
