@@ -1,4 +1,4 @@
-import { normalizeWorldRecord, type WorldRecord } from '../domain/world.ts'
+import { normalizeWorldRecord, worldTimeWeatherOf, type WorldRecord } from '../domain/world.ts'
 
 function pushUniqueById<T extends { id: string }>(target: T[], items: T[]): void {
   const ids = new Set(target.map((item) => item.id))
@@ -125,7 +125,7 @@ export function applyBitterrootHoltCanon(source: WorldRecord): WorldRecord {
   ])
 
   world.timeWeather = {
-    ...world.timeWeather,
+    ...worldTimeWeatherOf(world),
     preset: 'custom',
     mode: 'tick',
     minutesPerInput: 1,
