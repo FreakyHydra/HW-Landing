@@ -9,7 +9,7 @@ export type Session = {
 export type Project = {
   title: string
   stage: 'STABLE' | 'CLOSED BETA' | 'CLOSED ALPHA'
-  realm: 'ROLEPLAY' | 'SOUND' | 'WORLD' | 'DESKTOP'
+  realm: 'ROLEPLAY' | 'SOUND' | 'WORLD' | 'DESKTOP' | 'EVE ONLINE'
   desc: string
   href?: string
   access: Exclude<AccessTier, 'all'>
@@ -24,6 +24,13 @@ export const projects: Project[] = [
     realm: 'ROLEPLAY',
     desc: 'The main roleplay platform, including Sandbox, World Runtime and the Forge.',
     href: appUrl,
+    access: 'stable',
+  },
+  {
+    title: 'Lightyear Apart',
+    stage: 'STABLE',
+    realm: 'EVE ONLINE',
+    desc: 'EVE Online corporation portal placeholder. Corporation tools and member access will be wired here later.',
     access: 'stable',
   },
   {
