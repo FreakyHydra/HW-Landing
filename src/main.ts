@@ -10,6 +10,7 @@ import { CanonicalPublicWorldRepository } from './data/canonical-public-worlds'
 import { installPlayerMessageColors } from './runtime/player-message-colors'
 import { installRoleplayLengthControls } from './runtime/roleplay-length-controls'
 import { installWorldCommandPalette } from './runtime/world-command-palette'
+import { installForceCharacterTurn } from './runtime/force-character-turn'
 
 const app = document.querySelector<HTMLDivElement>('#app')
 if (!app) throw new Error('Application root is missing')
@@ -17,6 +18,7 @@ if (!app) throw new Error('Application root is missing')
 installPlayerMessageColors()
 installRoleplayLengthControls()
 installWorldCommandPalette()
+installForceCharacterTurn()
 
 const router = new AppRouter(app, {
   characters: new LocalCharacterRepository(),
