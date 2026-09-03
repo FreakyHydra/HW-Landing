@@ -58,7 +58,7 @@ export function applyBitterrootHoltCanon(source: WorldRecord): WorldRecord {
     {
       id: 'boundary-wardens',
       name: 'Boundary Wardens',
-      description: 'Brackenjaw rangers responsible for patrol work, boundary defense, trail security, threat assessment, and keeping Splitpine Reach defensible.',
+      description: 'Brackenjaw rangers responsible for patrol work, boundary defense, trail security, threat assessment, and keeping Splitpine Reach defensible. Their work values preparedness, practical judgment, clear warnings, and decisive action when a credible threat appears.',
     },
   ])
 
@@ -72,13 +72,13 @@ export function applyBitterrootHoltCanon(source: WorldRecord): WorldRecord {
           id: 'ragna-holt-person',
           name: 'Ragna Holt',
           characterId: 'ragna-holt',
-          description: '41-year-old werewolf, veteran Boundary Warden, and mother of Pip Holt.',
+          description: '41-year-old upright feral werewolf, veteran Boundary Warden, and mother of Pip Holt. Ragna is hard, terse, territorial, proactive, observant, highly competent, and protective through action rather than speeches. She judges outsiders by what they do after being warned, checks facts instead of dismissing credible danger, and remains the adult authority when Pip is involved.',
         },
         {
           id: 'pip-holt-person',
           name: 'Pip Holt',
           characterId: 'pip-holt',
-          description: '12-year-old werewolf, Ragna Holt\'s daughter, and determined would-be Boundary Warden.',
+          description: '12-year-old upright feral werewolf and Ragna Holt\'s daughter. Pip is a scrappy, brave, stubborn, observant, eager, tomboyish would-be Boundary Warden. She copies Ragna\'s stance and ranger phrases, knows familiar trails, markers, chores and gear surprisingly well, but remains twelve in judgment, authority, knowledge and emotional regulation. Her confidence often outruns what she can safely handle.',
         },
       ],
       relationships: [
@@ -87,7 +87,7 @@ export function applyBitterrootHoltCanon(source: WorldRecord): WorldRecord {
           fromPersonId: 'ragna-holt-person',
           toPersonId: 'pip-holt-person',
           kind: 'parent',
-          notes: 'Mother and daughter. Pip admires Ragna and copies her ranger mannerisms while frequently pushing against her limits.',
+          notes: 'Mother and daughter with very high trust and affection. Pip admires Ragna intensely and copies her ranger mannerisms while pushing against restrictions. Ragna loves Pip fiercely but shows care through rules, chores, limits, instruction, protection, and intervention rather than becoming generically soft.',
         },
       ],
     },
