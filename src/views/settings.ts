@@ -2,10 +2,12 @@ import { shell, toast } from '../app/shell'
 import { getThemePreference, setThemePreference, type ThemePreference } from '../app/theme'
 import { WORLD_RUNTIME_NAI_MODELS, type WorldRuntimeNovelAiModel } from '../runtime/novelai.ts'
 import { clearNovelAiToken, getNovelAiRuntimeSettings, saveNovelAiRuntimeSettings } from '../runtime/novelai-settings.ts'
+import { getRoleplayTextColors, resetRoleplayTextColors, saveRoleplayTextColors } from '../runtime/roleplay-visual-settings.ts'
 
 export async function renderSettings(root: HTMLElement): Promise<void> {
   const preference = getThemePreference()
   const nai = getNovelAiRuntimeSettings()
+  const textColors = getRoleplayTextColors()
   root.innerHTML = shell('/settings/', `
     <section class="settings-grid">
       <article class="settings-panel instrument-panel">
@@ -14,6 +16,29 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
         <div class="theme-selector" role="radiogroup" aria-label="Appearance theme">
           ${(['system','light','dark'] as ThemePreference[]).map((theme) => `<button type="button" role="radio" data-theme-choice="${theme}" aria-checked="${preference === theme}" class="${preference === theme ? 'active' : ''}"><span class="theme-swatch ${theme}"><i></i><b></b></span><strong>${theme[0].toUpperCase()}${theme.slice(1)}</strong><small>${theme === 'system' ? 'Follow this device' : theme === 'light' ? 'Warm daylight surfaces' : 'Analog night surfaces'}</small></button>`).join('')}
         </div>
+      </article>
+
+      <article class="settings-panel instrument-panel">
+        <header class="module-title"><div><p class="eyebrow">ROLEPLAY DISPLAY</p><h2>Text colors</h2></div><small>SANDBOX DEFAULTS</small></header>
+        <p class="module-intro">Dialogue, action and narration use the same default colors as Sandbox. Change them here for the world runtime.</p>
+        <form id="roleplay-color-settings" class="editor-panel roleplay-color-settings">
+          <label class="field-control roleplay-color-field">
+            <span class="field-head">Dialogue</span>
+            <span class="roleplay-color-input"><input id="rp-dialogue-color" type="color" value="${textColors.dialogue}" /><code>${textColors.dialogue.toUpperCase()}</code></span>
+          </label>
+          <label class="field-control roleplay-color-field">
+            <span class="field-head">Action</span>
+            <span class="roleplay-color-input"><input id="rp-action-color" type="color" value="${textColors.action}" /><code>${textColors.action.toUpperCase()}</code></span>
+          </label>
+          <label class="field-control roleplay-color-field">
+            <span class="field-head">Narration</span>
+            <span class="roleplay-color-input"><input id="rp-narration-color" type="color" value="${textColors.narration}" /><code>${textColors.narration.toUpperCase()}</code></span>
+          </label>
+          <div class="card-actions">
+            <button type="submit" class="machine-button primary">SAVE TEXT COLORS</button>
+            <button type="button" class="machine-button" id="reset-roleplay-colors">RESET TO SANDBOX</button>
+          </div>
+        </form>
       </article>
 
       <article class="settings-panel instrument-panel">
@@ -48,7 +73,7 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
         </form>
       </article>
 
-      <article class="settings-panel instrument-panel muted-setting"><header class="module-title"><div><p class="eyebrow">PERSISTENCE</p><h2>Storage</h2></div><small>DEVELOPMENT PHASE</small></header><p>Worlds, characters, personas and NovelAI runtime settings currently stay on this device behind local repository interfaces.</p></article>
+      <article class="settings-panel instrument-panel muted-setting"><header class="module-title"><div><p class="eyebrow">PERSISTENCE</p><h2>Storage</h2></div><small>DEVELOPMENT PHASE</small></header><p>Worlds, characters, personas, roleplay colors and NovelAI runtime settings currently stay on this device behind local repository interfaces.</p></article>
     </section>
   `, 'Settings', 'TOOLS · PLATFORM CONTROLS')
 
@@ -66,6 +91,32 @@ export async function renderSettings(root: HTMLElement): Promise<void> {
       item.setAttribute('aria-checked', String(active))
     })
   }))
+
+  const colorForm = root.querySelector<HTMLFormElement>('#roleplay-color-settings')!
+  const dialogueColor = root.querySelector<HTMLInputElement>('#rp-dialogue-color')!
+  const actionColor = root.querySelector<HTMLInputElement>('#rp-action-color')!
+  const narrationColor = root.querySelector<HTMLInputElement>('#rp-narration-color')!
+  const colorInputs = [dialogueColor, actionColor, narrationColor]
+  colorInputs.forEach((input) => input.addEventListener('input', () => {
+    const code = input.parentElement?.querySelector('code')
+    if (code) code.textContent = input.value.toUpperCase()
+  }))
+  colorForm.addEventListener('submit', (event) => {
+    event.preventDefault()
+    saveRoleplayTextColors({ dialogue: dialogueColor.value, action: actionColor.value, narration: narrationColor.value })
+    toast(root, 'Roleplay text colors saved on this device.', 'normal')
+  })
+  root.querySelector<HTMLButtonElement>('#reset-roleplay-colors')?.addEventListener('click', () => {
+    const defaults = resetRoleplayTextColors()
+    dialogueColor.value = defaults.dialogue
+    actionColor.value = defaults.action
+    narrationColor.value = defaults.narration
+    colorInputs.forEach((input) => {
+      const code = input.parentElement?.querySelector('code')
+      if (code) code.textContent = input.value.toUpperCase()
+    })
+    toast(root, 'Roleplay colors reset to Sandbox defaults.', 'normal')
+  })
 
   const form = root.querySelector<HTMLFormElement>('#novelai-settings')!
   const tokenInput = root.querySelector<HTMLInputElement>('#nai-token')!
