@@ -124,6 +124,28 @@ export function applyBitterrootHoltCanon(source: WorldRecord): WorldRecord {
     },
   ])
 
+  world.timeWeather = {
+    ...world.timeWeather,
+    preset: 'custom',
+    mode: 'tick',
+    minutesPerInput: 1,
+    hoursPerDay: 24,
+    startingDay: 1,
+    startingHour: 8,
+    seasonsEnabled: true,
+    seasons: [
+      { id: 'spring', name: 'Spring', lengthDays: 91, weatherPrompt: 'Rapid thaws, heavy rain, swollen rivers, mud, sudden cold snaps, and dangerous storm fronts are common.' },
+      { id: 'summer', name: 'Summer', lengthDays: 92, weatherPrompt: 'Warm periods can break violently into thunderstorms, high winds, torrential rain, flash flooding, and abrupt temperature drops.' },
+      { id: 'autumn', name: 'Autumn', lengthDays: 91, weatherPrompt: 'Storm frequency rises as temperatures fall. Strong winds, prolonged rain, early snow at elevation, and difficult travel are common.' },
+      { id: 'winter', name: 'Winter', lengthDays: 91, weatherPrompt: 'Severe cold, heavy snow, blizzards, ice, whiteout conditions, and dangerous wind chill are credible seasonal hazards.' },
+    ],
+    weatherMode: 'simulated',
+    climate: 'Temperate wilderness with violent and unstable weather, strong regional variation, and harsher conditions at elevation.',
+    weatherPrompt: 'Bitterroot weather is natural rather than magical by default, but it is notably violent, unstable, and dangerous. Storms can intensify quickly. Heavy rain, flooding, landslides, strong winds, lightning, sudden cold snaps, heavy snow, and blizzards should occur when season and region make them plausible. Weather should meaningfully affect visibility, travel, shelter, work, wildlife, and character decisions.',
+    realWorldLocation: '',
+    realWorldInfluence: 0,
+  }
+
   world.updatedAt = new Date().toISOString()
   return world
 }
