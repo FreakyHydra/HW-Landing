@@ -4,7 +4,8 @@ import { escapeHtml } from '../app/html.ts'
 import { cleanWorldRuntimeReply, WorldRuntimeNovelAiProvider, WORLD_RUNTIME_NAI_MODELS, type WorldRuntimeNovelAiModel } from '../runtime/novelai.ts'
 import { clearNovelAiToken, getNovelAiRuntimeSettings, saveNovelAiRuntimeSettings } from '../runtime/novelai-settings.ts'
 import { LocalRelationshipRepository, DEFAULT_PERSONA_ID, evaluateRelationshipTurn } from '../runtime/relationship-v2.ts'
-import { compileWorldRuntimePrompt, LocalWorldRuntimeSessionRepository, resolveRuntimeInhabitants, type RuntimeInhabitant, type WorldRuntimeMessage } from '../runtime/world-brain.ts'
+import { compileWorldRuntimePrompt, LocalWorldRuntimeSessionRepository, resolveRuntimeInhabitants, type RuntimeInhabitant, type WorldRuntimeMessage, type WorldRuntimeSession } from '../runtime/world-brain.ts'
+import { cleanImpersonatedPlayerTurn, compileWorldImpersonationPrompt, removeRelationshipTurn } from '../runtime/world-turn-tools.ts'
 
 function directlyAddressedInhabitants(value: string, inhabitants: RuntimeInhabitant[]): RuntimeInhabitant[] {
   const lower = value.toLowerCase()
@@ -34,9 +35,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
   const relationshipRepository = new LocalRelationshipRepository()
   const provider = new WorldRuntimeNovelAiProvider()
   const freshSession = new URLSearchParams(location.search).get('new') === '1'
-  const session = freshSession
-    ? sessionRepository.reset(world)
-    : sessionRepository.get(world.id) ?? sessionRepository.create(world)
+  const session = freshSession ? sessionRepository.reset(world) : sessionRepository.get(world.id) ?? sessionRepository.create(world)
   const persona = session.personaId ? personas.find((item) => item.id === session.personaId) : personas[0]
   if (!session.personaId && persona) {
     session.personaId = persona.id
@@ -63,6 +62,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       <form class="world-runtime-prompt" autocomplete="off">
         <span class="world-runtime-prompt-mark">›</span>
         <textarea rows="1" aria-label="World prompt" placeholder="What do you do?  /exit to leave"></textarea>
+        <button type="button" class="world-runtime-impersonate" aria-label="Impersonate player" title="Impersonate">IMP</button>
         <button type="submit" aria-label="Send prompt">↵</button>
       </form>
     </main>
@@ -73,7 +73,8 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
   const canvas = root.querySelector<HTMLCanvasElement>('.world-runtime-particles')!
   const input = root.querySelector<HTMLTextAreaElement>('.world-runtime-prompt textarea')!
   const form = root.querySelector<HTMLFormElement>('.world-runtime-prompt')!
-  const submit = root.querySelector<HTMLButtonElement>('.world-runtime-prompt button')!
+  const submit = root.querySelector<HTMLButtonElement>('.world-runtime-prompt button[type="submit"]')!
+  const impersonateButton = root.querySelector<HTMLButtonElement>('.world-runtime-impersonate')!
   const context2d = canvas.getContext('2d')
   let frame = 0
   let width = 0
@@ -82,11 +83,43 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
   let pointerY = -1000
   let busy = false
 
-  const appendMessage = (message: WorldRuntimeMessage, persist = true) => {
+  function setBusy(value: boolean): void {
+    busy = value
+    submit.disabled = value
+    impersonateButton.disabled = value
+    input.disabled = value
+  }
+
+  function messageElement(message: WorldRuntimeMessage): HTMLElement {
     const article = document.createElement('article')
     article.className = `world-runtime-message ${message.sender}`
-    article.textContent = message.text
-    story.append(article)
+    article.dataset.messageId = message.id
+    const body = document.createElement('div')
+    body.className = 'world-runtime-message-body'
+    body.textContent = message.text
+    article.append(body)
+    if (message.sender === 'player' || message.sender === 'world') {
+      const actions = document.createElement('div')
+      actions.className = 'world-runtime-message-actions'
+      const reroll = document.createElement('button')
+      reroll.type = 'button'
+      reroll.dataset.rerollMessage = message.id
+      reroll.textContent = '↻'
+      reroll.title = message.sender === 'player' ? 'Reroll player turn' : 'Reroll world response'
+      reroll.setAttribute('aria-label', reroll.title)
+      actions.append(reroll)
+      article.append(actions)
+    }
+    return article
+  }
+
+  function renderStory(): void {
+    story.replaceChildren(...session.history.map(messageElement))
+    story.scrollTop = story.scrollHeight
+  }
+
+  const appendMessage = (message: WorldRuntimeMessage, persist = true) => {
+    story.append(messageElement(message))
     story.scrollTop = story.scrollHeight
     if (persist) {
       session.history.push(message)
@@ -96,8 +129,114 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
   }
 
   const appendSystem = (text: string) => appendMessage({ id: crypto.randomUUID(), sender: 'system', text, createdAt: new Date().toISOString() }, false)
-  session.history.forEach((message) => appendMessage(message, false))
+  renderStory()
   if (freshSession) appendSystem('New world session started. World canon and relationship state were kept.')
+
+  function turnInhabitantsFor(value: string): RuntimeInhabitant[] {
+    const addressed = directlyAddressedInhabitants(value, inhabitants)
+    return addressed.length ? addressed : inhabitants
+  }
+
+  function saveSessionHistory(history: WorldRuntimeMessage[]): void {
+    session.history = history
+    session.updatedAt = new Date().toISOString()
+    sessionRepository.save(session)
+    renderStory()
+  }
+
+  async function generateWorldReply(playerMessage: WorldRuntimeMessage): Promise<void> {
+    const personaId = persona?.id || DEFAULT_PERSONA_ID
+    const turnInhabitants = turnInhabitantsFor(playerMessage.text)
+    const relationshipMap = Object.fromEntries(turnInhabitants.map((inhabitant) => [inhabitant.id, relationshipRepository.get(inhabitant.id, personaId)]))
+    const prompt = compileWorldRuntimePrompt({ world, session, playerTurn: playerMessage.text, inhabitants: turnInhabitants, persona, relationships: relationshipMap })
+    const nai = getNovelAiRuntimeSettings()
+    const reply = await provider.generate({
+      prompt,
+      model: nai.model,
+      maxTokens: nai.maxTokens,
+      temperature: nai.temperature,
+      characterNames: inhabitantNames,
+    }, nai.token)
+    appendMessage({ id: crypto.randomUUID(), sender: 'world', text: reply, createdAt: new Date().toISOString() })
+
+    const combined = `${playerMessage.text}\n${reply}`.toLowerCase()
+    for (const inhabitant of turnInhabitants) {
+      const first = inhabitant.name.split(/\s+/)[0].toLowerCase()
+      if (!combined.includes(inhabitant.name.toLowerCase()) && !playerMessage.text.toLowerCase().includes(first)) continue
+      const previous = relationshipRepository.get(inhabitant.id, personaId)
+      relationshipRepository.apply(evaluateRelationshipTurn({
+        characterId: inhabitant.id,
+        personaId,
+        previousScore: previous?.score ?? 0,
+        playerMessage: playerMessage.text,
+        characterReply: reply,
+        turnId: playerMessage.id,
+      }))
+    }
+  }
+
+  async function impersonate(direction = '', baseSession: WorldRuntimeSession = session): Promise<string> {
+    const nai = getNovelAiRuntimeSettings()
+    const prompt = compileWorldImpersonationPrompt({ world, session: baseSession, persona, inhabitants, direction })
+    const raw = await provider.generateRaw({
+      prompt,
+      model: nai.model,
+      maxTokens: Math.min(nai.maxTokens, 320),
+      temperature: Math.max(nai.temperature, 0.82),
+      characterNames: inhabitantNames,
+    }, nai.token)
+    const draft = cleanImpersonatedPlayerTurn(raw, inhabitantNames)
+    if (!draft) throw new Error('NovelAI returned no usable impersonated player turn.')
+    return draft
+  }
+
+  async function rerollWorldMessage(messageId: string): Promise<void> {
+    const worldIndex = session.history.findIndex((message) => message.id === messageId && message.sender === 'world')
+    if (worldIndex < 0) return
+    let playerIndex = worldIndex - 1
+    while (playerIndex >= 0 && session.history[playerIndex].sender !== 'player') playerIndex -= 1
+    if (playerIndex < 0) return appendSystem('No player turn exists before that response.')
+    const playerMessage = session.history[playerIndex]
+    removeRelationshipTurn(playerMessage.id)
+    saveSessionHistory(session.history.slice(0, worldIndex))
+    setBusy(true)
+    try { await generateWorldReply(playerMessage) }
+    catch (error) { appendSystem(error instanceof Error ? error.message : 'Could not reroll the world response.') }
+    finally { setBusy(false); input.focus() }
+  }
+
+  async function rerollPlayerMessage(messageId: string): Promise<void> {
+    const playerIndex = session.history.findIndex((message) => message.id === messageId && message.sender === 'player')
+    if (playerIndex < 0) return
+    const original = session.history[playerIndex]
+    const baseHistory = session.history.slice(0, playerIndex)
+    const baseSession: WorldRuntimeSession = { ...session, history: baseHistory }
+    removeRelationshipTurn(original.id)
+    setBusy(true)
+    try {
+      const replacement = await impersonate(`Write a fresh alternative to the previous player turn without copying its wording. Preserve the same broad situation and player persona. Previous turn: ${original.text}`, baseSession)
+      const nextPlayer: WorldRuntimeMessage = { ...original, text: replacement, createdAt: new Date().toISOString() }
+      saveSessionHistory([...baseHistory, nextPlayer])
+      await generateWorldReply(nextPlayer)
+    } catch (error) {
+      appendSystem(error instanceof Error ? error.message : 'Could not reroll the player turn.')
+    } finally {
+      setBusy(false)
+      input.focus()
+    }
+  }
+
+  async function rerollLatestWorld(): Promise<void> {
+    const latest = [...session.history].reverse().find((message) => message.sender === 'world')
+    if (!latest) return appendSystem('There is no world response to reroll yet.')
+    await rerollWorldMessage(latest.id)
+  }
+
+  async function rerollLatestPlayer(): Promise<void> {
+    const latest = [...session.history].reverse().find((message) => message.sender === 'player')
+    if (!latest) return appendSystem('There is no player turn to reroll yet.')
+    await rerollPlayerMessage(latest.id)
+  }
 
   const particles = Array.from({ length: 72 }, () => ({
     x: Math.random(), y: Math.random(),
@@ -164,7 +303,31 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
     }
   })
 
-  const handleCommand = (value: string): boolean => {
+  story.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-reroll-message]')
+    if (!button || busy) return
+    const message = session.history.find((item) => item.id === button.dataset.rerollMessage)
+    if (!message) return
+    if (message.sender === 'world') void rerollWorldMessage(message.id)
+    if (message.sender === 'player') void rerollPlayerMessage(message.id)
+  })
+
+  impersonateButton.addEventListener('click', async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      input.value = await impersonate(input.value.trim())
+      input.style.height = 'auto'
+      input.style.height = `${Math.min(input.scrollHeight, 180)}px`
+    } catch (error) {
+      appendSystem(error instanceof Error ? error.message : 'Could not impersonate the player.')
+    } finally {
+      setBusy(false)
+      input.focus()
+    }
+  })
+
+  const handleCommand = async (value: string): Promise<boolean> => {
     const command = value.trim()
     const lower = command.toLowerCase()
     if (lower === '/exit' || lower === '/home' || lower === '/leave') { exitWorld(); return true }
@@ -174,11 +337,18 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       return true
     }
     if (lower === '/clear') {
-      session.history = []
-      session.updatedAt = new Date().toISOString()
-      sessionRepository.save(session)
-      story.replaceChildren()
+      saveSessionHistory([])
       appendSystem('Current world conversation cleared. World canon and relationships were not reset.')
+      return true
+    }
+    if (lower === '/reroll') { await rerollLatestWorld(); return true }
+    if (lower === '/reroll me' || lower === '/reroll player') { await rerollLatestPlayer(); return true }
+    if (lower === '/impersonate' || lower.startsWith('/impersonate ')) {
+      const direction = command.slice('/impersonate'.length).trim()
+      setBusy(true)
+      try { input.value = await impersonate(direction) }
+      catch (error) { appendSystem(error instanceof Error ? error.message : 'Could not impersonate the player.') }
+      finally { setBusy(false); input.focus() }
       return true
     }
     if (lower === '/where') {
@@ -215,7 +385,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       return true
     }
     if (lower === '/help') {
-      appendSystem('/exit · /new · /clear · /where · /who · NovelAI configuration is available in Settings')
+      appendSystem('/exit · /new · /clear · /reroll · /reroll me · /impersonate [direction] · /where · /who · NovelAI configuration is available in Settings')
       return true
     }
     return false
@@ -227,53 +397,14 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
     if (!value || busy) return
     input.value = ''
     input.style.height = 'auto'
-    if (handleCommand(value)) return
+    if (await handleCommand(value)) return
 
-    busy = true
-    submit.disabled = true
-    input.disabled = true
-    const turnId = crypto.randomUUID()
-    const playerMessage: WorldRuntimeMessage = { id: turnId, sender: 'player', text: value, createdAt: new Date().toISOString() }
+    const playerMessage: WorldRuntimeMessage = { id: crypto.randomUUID(), sender: 'player', text: value, createdAt: new Date().toISOString() }
     appendMessage(playerMessage)
-
-    try {
-      const personaId = persona?.id || DEFAULT_PERSONA_ID
-      const addressed = directlyAddressedInhabitants(value, inhabitants)
-      const turnInhabitants = addressed.length ? addressed : inhabitants
-      const relationshipMap = Object.fromEntries(turnInhabitants.map((inhabitant) => [inhabitant.id, relationshipRepository.get(inhabitant.id, personaId)]))
-      const prompt = compileWorldRuntimePrompt({ world, session, playerTurn: value, inhabitants: turnInhabitants, persona, relationships: relationshipMap })
-      const nai = getNovelAiRuntimeSettings()
-      const reply = await provider.generate({
-        prompt,
-        model: nai.model,
-        maxTokens: nai.maxTokens,
-        temperature: nai.temperature,
-        characterNames: inhabitantNames,
-      }, nai.token)
-      const worldMessage: WorldRuntimeMessage = { id: crypto.randomUUID(), sender: 'world', text: reply, createdAt: new Date().toISOString() }
-      appendMessage(worldMessage)
-
-      const combined = `${value}\n${reply}`.toLowerCase()
-      for (const inhabitant of turnInhabitants) {
-        if (!combined.includes(inhabitant.name.toLowerCase()) && !value.toLowerCase().includes(inhabitant.name.split(/\s+/)[0].toLowerCase())) continue
-        const previous = relationshipRepository.get(inhabitant.id, personaId)
-        relationshipRepository.apply(evaluateRelationshipTurn({
-          characterId: inhabitant.id,
-          personaId,
-          previousScore: previous?.score ?? 0,
-          playerMessage: value,
-          characterReply: reply,
-          turnId,
-        }))
-      }
-    } catch (error) {
-      appendSystem(error instanceof Error ? error.message : 'The world runtime could not generate a reply.')
-    } finally {
-      busy = false
-      submit.disabled = false
-      input.disabled = false
-      input.focus()
-    }
+    setBusy(true)
+    try { await generateWorldReply(playerMessage) }
+    catch (error) { appendSystem(error instanceof Error ? error.message : 'The world runtime could not generate a reply.') }
+    finally { setBusy(false); input.focus() }
   })
 
   window.addEventListener('resize', resize)
