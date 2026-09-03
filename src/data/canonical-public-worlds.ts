@@ -1,6 +1,6 @@
 import type { WorldRecord } from '../domain/world.ts'
-import { BITTERROOT_PUBLIC_WORLD_ID, PublicWorldRepository } from './public-worlds'
-import { applyBitterrootHoltCanon } from './bitterroot-canon'
+import { BITTERROOT_PUBLIC_WORLD_ID, PublicWorldRepository } from './public-worlds.ts'
+import { applyBitterrootHoltCanon } from './bitterroot-canon.ts'
 
 export class CanonicalPublicWorldRepository extends PublicWorldRepository {
   override async list(): Promise<WorldRecord[]> {
