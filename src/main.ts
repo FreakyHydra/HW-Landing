@@ -1,34 +1,17 @@
 import './style.css'
 import { createField } from './field'
-import { shatterSigil } from './shatter'
-import { markGateAccepted, mountUi, renderIdentity, renderProjects, showDeniedReason } from './ui'
+import { mountUi, renderIdentity, renderProjects } from './ui'
 import type { AccessTier, Session } from './projects'
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+const authUrl = import.meta.env.VITE_AUTH_URL || '/'
 
 document.addEventListener('contextmenu', (event) => {
   event.preventDefault()
 })
 
 const ui = mountUi()
-const field = createField(ui.field, ui.shatter, ui.aura, ui.sigil, reducedMotion)
-showDeniedReason(ui.gateNote)
-
-function revealWorld(session: Session) {
-  renderIdentity(ui.identity, session)
-  renderProjects(ui.projectGrid, session)
-  shatterSigil({
-    canvas: ui.shatter,
-    image: ui.sigilImage,
-    gate: ui.gate,
-    world: ui.world,
-    reducedMotion,
-    addRipple: field.addRipple,
-  }, () => {
-    window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' })
-    history.replaceState({}, '', location.pathname)
-  })
-}
+createField(ui.field, ui.shatter, ui.aura, ui.sigil, reducedMotion)
 
 function devPreviewSession(): Session | undefined {
   if (!import.meta.env.DEV) return undefined
@@ -42,12 +25,33 @@ function devPreviewSession(): Session | undefined {
   if (!preview || !accessMap[preview]) return undefined
   return {
     authenticated: true,
-    user: { username: 'Gate Preview' },
+    user: { username: 'Lobby Preview' },
     access: accessMap[preview],
   }
 }
 
-async function loadSession() {
+function showLobby(session: Session): void {
+  renderIdentity(ui.identity, session)
+  renderProjects(ui.projectGrid, session)
+
+  const eyebrow = ui.world.querySelector<HTMLElement>('.world-hero .eyebrow')
+  const title = ui.world.querySelector<HTMLElement>('.world-hero h2')
+  const intro = ui.world.querySelector<HTMLElement>('.world-hero > p:not(.eyebrow)')
+  const divider = ui.world.querySelector<HTMLElement>('.realm-divider span')
+  if (eyebrow) eyebrow.textContent = 'SEAL VERIFIED'
+  if (title) title.textContent = 'The Howling Whispers Lobby'
+  if (intro) intro.textContent = 'Choose where you want to go. Rebrand, Sandbox and the Lightyear Apart corporation area remain separate destinations behind the same authenticated gate.'
+  if (divider) divider.textContent = 'CHOOSE A DESTINATION'
+
+  ui.gate.hidden = true
+  ui.world.hidden = false
+  ui.world.removeAttribute('aria-hidden')
+  document.body.classList.remove('gate-locked')
+  document.body.classList.add('gate-open')
+  window.scrollTo({ top: 0, behavior: 'auto' })
+}
+
+async function loadSession(): Promise<void> {
   try {
     const session = devPreviewSession() || await (async () => {
       const response = await fetch('/api/session', { credentials: 'include', cache: 'no-store' })
@@ -55,14 +59,13 @@ async function loadSession() {
       return response.json() as Promise<Session>
     })()
 
-    if (session.authenticated) {
-      await ui.sigilImage.decode().catch(() => undefined)
-      markGateAccepted(ui, session)
-      setTimeout(() => revealWorld(session), reducedMotion ? 120 : 1900)
+    if (!session.authenticated) {
+      location.replace(authUrl)
+      return
     }
+    showLobby(session)
   } catch {
-    ui.gateNote.textContent = 'The gate is offline. The worlds remain sealed for now.'
-    ui.gateNote.classList.add('warning')
+    location.replace(authUrl)
   }
 }
 
