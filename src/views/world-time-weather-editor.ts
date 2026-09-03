@@ -7,6 +7,10 @@ function currentWorldId(): string | undefined {
   return match ? decodeURIComponent(match[1]) : undefined
 }
 
+function escapeValue(value: string | number): string {
+  return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+}
+
 function readWorldTimeWeather(worldId: string): WorldTimeWeather {
   const defaults = defaultWorldTimeWeather()
   try {
@@ -20,14 +24,15 @@ function readWorldTimeWeather(worldId: string): WorldTimeWeather {
   }
 }
 
-function numberValue(form: HTMLFormElement, name: string, fallback: number): number {
+function numberValue(form: HTMLFormElement, name: string, fallback: number, allowZero = false): number {
   const control = form.elements.namedItem(name) as HTMLInputElement | null
   const value = Number(control?.value)
-  return Number.isFinite(value) && value > 0 ? value : fallback
+  const valid = allowZero ? value >= 0 : value > 0
+  return Number.isFinite(value) && valid ? value : fallback
 }
 
 function selected(form: HTMLFormElement, name: string): string {
-  return (form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null)?.value || ''
+  return (form.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null)?.value || ''
 }
 
 function checked(form: HTMLFormElement, name: string): boolean {
@@ -36,7 +41,7 @@ function checked(form: HTMLFormElement, name: string): boolean {
 
 function input(label: string, name: string, value: string | number, type = 'text', min?: number, max?: number): string {
   const bounds = `${min !== undefined ? ` min="${min}"` : ''}${max !== undefined ? ` max="${max}"` : ''}`
-  return `<label class="field-control"><span class="field-head">${label}</span><input name="${name}" type="${type}" value="${String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"${bounds}></label>`
+  return `<label class="field-control"><span class="field-head">${label}</span><input name="${name}" type="${type}" value="${escapeValue(value)}"${bounds}></label>`
 }
 
 function option(value: string, label: string, current: string): string {
@@ -50,7 +55,7 @@ function seasonRows(settings: WorldTimeWeather): string {
         ${input('Season name', `tw-season-name-${index}`, season.name)}
         ${input('Length in days', `tw-season-days-${index}`, season.lengthDays, 'number', 1, 100000)}
       </div>
-      <label class="field-control"><span class="field-head">Season weather rules</span><textarea name="tw-season-prompt-${index}" rows="3" placeholder="Leave blank for normal seasonal logic.">${season.weatherPrompt}</textarea></label>
+      <label class="field-control"><span class="field-head">Season weather rules</span><textarea name="tw-season-prompt-${index}" rows="3" placeholder="Leave blank for normal seasonal logic.">${escapeValue(season.weatherPrompt)}</textarea></label>
     </div>
   `).join('')
 }
@@ -92,7 +97,7 @@ function buildPanel(settings: WorldTimeWeather): HTMLElement {
         ${input('Real-world weather location', 'tw-real-location', settings.realWorldLocation)}
         ${input('Real-world influence %', 'tw-real-influence', settings.realWorldInfluence, 'number', 0, 100)}
       </div>
-      <label class="field-control"><span class="field-head">World weather rules</span><textarea name="tw-weather-prompt" rows="6" placeholder="Leave blank for normal climate and seasonal logic.">${settings.weatherPrompt}</textarea></label>
+      <label class="field-control"><span class="field-head">World weather rules</span><textarea name="tw-weather-prompt" rows="6" placeholder="Leave blank for normal climate and seasonal logic.">${escapeValue(settings.weatherPrompt)}</textarea></label>
     </section>
     <section class="inheritance-callout"><i class="lamp live"></i><div><strong>Blank prompts use basic world logic</strong><p>Custom prompts override or bend the default behavior. This is where a world can define unusual seasonal or weather rules.</p></div></section>
   `
@@ -106,22 +111,23 @@ function readPanel(form: HTMLFormElement, previous: WorldTimeWeather): WorldTime
     lengthDays: numberValue(form, `tw-season-days-${index}`, season.lengthDays),
     weatherPrompt: selected(form, `tw-season-prompt-${index}`),
   }))
+  const hoursPerDay = numberValue(form, 'tw-hours-day', previous.hoursPerDay)
   return {
     preset: selected(form, 'tw-preset') === 'custom' ? 'custom' : 'simple',
     mode: selected(form, 'tw-mode') === 'realtime' ? 'realtime' : 'tick',
     minutesPerInput: numberValue(form, 'tw-minutes-input', previous.minutesPerInput),
-    hoursPerDay: numberValue(form, 'tw-hours-day', previous.hoursPerDay),
+    hoursPerDay,
     simpleDayRealMinutes: numberValue(form, 'tw-simple-day', previous.simpleDayRealMinutes),
     pauseWhenInactive: checked(form, 'tw-pause'),
     startingDay: numberValue(form, 'tw-start-day', previous.startingDay),
-    startingHour: Math.max(0, numberValue(form, 'tw-start-hour', previous.startingHour + 1) - 1),
+    startingHour: Math.min(hoursPerDay - 1, numberValue(form, 'tw-start-hour', previous.startingHour, true)),
     seasonsEnabled: checked(form, 'tw-seasons-enabled'),
     seasons,
     weatherMode: selected(form, 'tw-weather-mode') === 'real_world' ? 'real_world' : 'simulated',
     climate: selected(form, 'tw-climate'),
     weatherPrompt: selected(form, 'tw-weather-prompt'),
     realWorldLocation: selected(form, 'tw-real-location'),
-    realWorldInfluence: Math.max(0, Math.min(100, Number(selected(form, 'tw-real-influence')) || 0)),
+    realWorldInfluence: Math.max(0, Math.min(100, numberValue(form, 'tw-real-influence', previous.realWorldInfluence, true))),
   }
 }
 
