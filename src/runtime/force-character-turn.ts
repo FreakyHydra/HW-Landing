@@ -98,11 +98,11 @@ function contextTarget(inhabitants: RuntimeInhabitant[], history: WorldRuntimeMe
   return inhabitants.length === 1 ? inhabitants[0] : undefined
 }
 
-async function forceCharacterTurn(name = ''): Promise<void> {
+export async function forceCharacterTurn(name = ''): Promise<void> {
   const runtime = document.querySelector<HTMLElement>('.world-runtime[data-world-id]')
   const form = document.querySelector<HTMLFormElement>('.world-runtime-prompt')
   const input = form?.querySelector<HTMLTextAreaElement>('textarea')
-  if (!runtime || !form || !input) return
+  if (!runtime || !form || !input || input.disabled) return
   const worldId = runtime.dataset.worldId
   if (!worldId) return
 
@@ -128,7 +128,8 @@ async function forceCharacterTurn(name = ''): Promise<void> {
 
   const persona = session.personaId ? personas.find((item) => item.id === session.personaId) : personas[0]
   const personaId = persona?.id || DEFAULT_PERSONA_ID
-  const relationships = Object.fromEntries(turnCandidates.map((item) => [item.id, new LocalRelationshipRepository().get(item.id, personaId)]))
+  const relationshipRepository = new LocalRelationshipRepository()
+  const relationships = Object.fromEntries(turnCandidates.map((item) => [item.id, relationshipRepository.get(item.id, personaId)]))
   const lastPlayer = [...session.history].reverse().find((message) => message.sender === 'player')
   const playerTurn = lastPlayer?.text || 'Continue from the established scene without adding a new player action.'
   const basePrompt = compileWorldRuntimePrompt({
@@ -176,8 +177,16 @@ function handleSubmit(event: Event): void {
   const form = event.target as HTMLFormElement
   if (!form.matches('.world-runtime-prompt')) return
   const input = form.querySelector<HTMLTextAreaElement>('textarea')
-  if (!input) return
+  if (!input || input.disabled) return
   const value = input.value.trim()
+
+  if (!value) {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    void forceCharacterTurn()
+    return
+  }
+
   const match = value.match(/^\/(?:character|char|force)(?:\s+(.*))?$/i)
   if (!match) return
   event.preventDefault()
