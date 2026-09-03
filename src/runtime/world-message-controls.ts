@@ -15,7 +15,7 @@ function addDeleteButton(article: HTMLElement): void {
   button.type = 'button'
   button.dataset.deleteMessage = id
   button.textContent = '×'
-  button.title = article.classList.contains('player') ? 'Delete persona turn' : 'Delete character/world response'
+  button.title = article.classList.contains('player') ? 'Delete persona turn and everything after it' : 'Delete this response and everything after it'
   button.setAttribute('aria-label', button.title)
   actions.append(button)
 }
@@ -24,16 +24,11 @@ function mountDeleteButtons(): void {
   document.querySelectorAll<HTMLElement>('.world-runtime-message').forEach(addDeleteButton)
 }
 
-function relatedPlayerTurn(history: WorldRuntimeMessage[], index: number): WorldRuntimeMessage | undefined {
-  if (history[index]?.sender === 'player') return history[index]
-  for (let i = index - 1; i >= 0; i -= 1) {
-    if (history[i].sender === 'player') return history[i]
-    if (history[i].sender === 'world') break
-  }
-  return undefined
+function playerTurns(messages: WorldRuntimeMessage[]): WorldRuntimeMessage[] {
+  return messages.filter((message) => message.sender === 'player')
 }
 
-function deleteMessage(messageId: string): void {
+function deleteMessageAndAfter(messageId: string): void {
   const worldId = runtimeWorldId()
   if (!worldId) return
   const repository = new LocalWorldRuntimeSessionRepository()
@@ -42,14 +37,21 @@ function deleteMessage(messageId: string): void {
   const index = session.history.findIndex((message) => message.id === messageId)
   if (index < 0) return
 
-  const message = session.history[index]
-  const playerTurn = relatedPlayerTurn(session.history, index)
-  if (playerTurn) removeRelationshipTurn(playerTurn.id)
+  const removed = session.history.slice(index)
+  if (removed.length > 1) {
+    const confirmed = window.confirm(`Delete this message and the ${removed.length - 1} message${removed.length === 2 ? '' : 's'} after it?\n\nLater turns depend on this point in the conversation, so they will be removed too.`)
+    if (!confirmed) return
+  }
 
-  session.history.splice(index, 1)
+  for (const turn of playerTurns(removed)) removeRelationshipTurn(turn.id)
+
+  session.history = session.history.slice(0, index)
   session.updatedAt = new Date().toISOString()
   repository.save(session)
-  document.querySelector<HTMLElement>(`.world-runtime-message[data-message-id="${CSS.escape(messageId)}"]`)?.remove()
+
+  for (const message of removed) {
+    document.querySelector<HTMLElement>(`.world-runtime-message[data-message-id="${CSS.escape(message.id)}"]`)?.remove()
+  }
 }
 
 function handleClick(event: Event): void {
@@ -58,7 +60,7 @@ function handleClick(event: Event): void {
   event.preventDefault()
   event.stopPropagation()
   const id = button.dataset.deleteMessage
-  if (id) deleteMessage(id)
+  if (id) deleteMessageAndAfter(id)
 }
 
 const observer = new MutationObserver(mountDeleteButtons)
