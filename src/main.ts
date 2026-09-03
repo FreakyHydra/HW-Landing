@@ -1,4 +1,6 @@
 import './style.css'
+import './styles/world-runtime-visuals.css'
+import './styles/roleplay-visual-settings.css'
 import { AppRouter } from './app/router'
 import { LocalCharacterRepository, LocalPersonaRepository, LocalWorldRepository } from './data/repositories'
 import { CanonicalPublicWorldRepository } from './data/canonical-public-worlds'
