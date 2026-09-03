@@ -6,9 +6,14 @@ export type WorldRuntimeGenerationRequest = {
   model?: WorldRuntimeNovelAiModel
   maxTokens?: number
   temperature?: number
+  characterNames?: string[]
 }
 
-export function cleanWorldRuntimeReply(raw: string): string {
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export function cleanWorldRuntimeReply(raw: string, characterNames: string[] = []): string {
   let text = raw.trim()
 
   // Some reasoning-capable models can expose hidden scratch text before a
@@ -18,9 +23,29 @@ export function cleanWorldRuntimeReply(raw: string): string {
   text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
   text = text.replace(/<think>[\s\S]*$/gi, '').trim()
 
-  // Keep the runtime as prose rather than a model/debug transcript.
-  text = text.replace(/^\s*(?:assistant|world runtime|response)\s*:\s*/i, '')
   text = text.replace(/^\s*```(?:text|markdown)?\s*/i, '').replace(/\s*```\s*$/i, '')
+  text = text.replace(/^\s*(?:assistant|world runtime|response)\s*:\s*/i, '')
+
+  // The model must not continue the player's side of the exchange.
+  const playerContinuation = text.search(/(?:^|\n|\s{2,})Player\s*:/i)
+  if (playerContinuation >= 0) text = text.slice(0, playerContinuation).trim()
+
+  // Transcript-style labels sometimes survive prompt instructions. Convert
+  // them to paragraph boundaries rather than displaying an RPG cast list.
+  const labels = ['Narrator', ...characterNames]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegExp)
+  if (labels.length) {
+    const labelPattern = new RegExp(`(?:^|\\s{2,}|\\n)\\s*(?:${labels.join('|')})\\s*:\\s*`, 'gi')
+    text = text.replace(labelPattern, '\n\n')
+  }
+
+  // Old roleplay formatting used [action text]. The world runtime renders
+  // continuous prose, so unwrap action brackets instead of preserving them.
+  text = text.replace(/\[([^\[\]]{1,1200})\]/g, '$1')
+  text = text.replace(/\n{3,}/g, '\n\n')
+  text = text.replace(/[ \t]+\n/g, '\n')
   return text.trim()
 }
 
@@ -45,7 +70,7 @@ export class WorldRuntimeNovelAiProvider {
     }
     const payload = await response.json() as { reply?: unknown }
     if (typeof payload.reply !== 'string' || !payload.reply.trim()) throw new Error('NovelAI returned an empty roleplay reply.')
-    const reply = cleanWorldRuntimeReply(payload.reply)
+    const reply = cleanWorldRuntimeReply(payload.reply, request.characterNames)
     if (!reply) throw new Error('NovelAI returned no usable roleplay text after runtime cleanup.')
     return reply
   }
