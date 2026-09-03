@@ -2,11 +2,9 @@ import '../styles/world-runtime.css'
 import type { AppContext, Navigate } from '../app/router.ts'
 import { escapeHtml } from '../app/html.ts'
 import { WorldRuntimeNovelAiProvider, WORLD_RUNTIME_NAI_MODELS, type WorldRuntimeNovelAiModel } from '../runtime/novelai.ts'
+import { clearNovelAiToken, getNovelAiRuntimeSettings, saveNovelAiRuntimeSettings } from '../runtime/novelai-settings.ts'
 import { LocalRelationshipRepository, DEFAULT_PERSONA_ID, evaluateRelationshipTurn } from '../runtime/relationship-v2.ts'
 import { compileWorldRuntimePrompt, LocalWorldRuntimeSessionRepository, resolveRuntimeInhabitants, type WorldRuntimeMessage } from '../runtime/world-brain.ts'
-
-const TOKEN_KEY = 'hw.runtime.novelai.token'
-const MODEL_KEY = 'hw.runtime.novelai.model'
 
 export async function renderWorldRuntime(root: HTMLElement, context: AppContext, navigate: Navigate, id: string): Promise<void> {
   const world = (await context.worlds.get(id)) ?? (await context.publicWorlds.get(id))
@@ -150,26 +148,31 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       return true
     }
     if (lower === '/nai clear') {
-      localStorage.removeItem(TOKEN_KEY)
+      clearNovelAiToken()
       appendSystem('NovelAI token removed from this device.')
       return true
     }
     if (lower.startsWith('/nai token ')) {
       const token = command.slice('/nai token '.length).trim()
       if (!token) appendSystem('Usage: /nai token YOUR_PERSISTENT_TOKEN')
-      else { localStorage.setItem(TOKEN_KEY, token); appendSystem('NovelAI token saved on this device.') }
+      else {
+        const settings = getNovelAiRuntimeSettings()
+        saveNovelAiRuntimeSettings({ ...settings, token })
+        appendSystem('NovelAI token saved on this device.')
+      }
       return true
     }
     if (lower.startsWith('/nai model ')) {
       const model = lower.slice('/nai model '.length).trim()
       if (WORLD_RUNTIME_NAI_MODELS.includes(model as WorldRuntimeNovelAiModel)) {
-        localStorage.setItem(MODEL_KEY, model)
+        const settings = getNovelAiRuntimeSettings()
+        saveNovelAiRuntimeSettings({ ...settings, model: model as WorldRuntimeNovelAiModel })
         appendSystem(`NovelAI model saved on this device: ${model}`)
       } else appendSystem(`Available models: ${WORLD_RUNTIME_NAI_MODELS.join(', ')}`)
       return true
     }
     if (lower === '/help') {
-      appendSystem('/exit · /where · /who · /nai token <token> · /nai clear · /nai model <model>')
+      appendSystem('/exit · /where · /who · NovelAI configuration is available in Settings')
       return true
     }
     return false
@@ -194,9 +197,8 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
       const personaId = persona?.id || DEFAULT_PERSONA_ID
       const relationshipMap = Object.fromEntries(inhabitants.map((inhabitant) => [inhabitant.id, relationshipRepository.get(inhabitant.id, personaId)]))
       const prompt = compileWorldRuntimePrompt({ world, session, playerTurn: value, inhabitants, persona, relationships: relationshipMap })
-      const storedModel = localStorage.getItem(MODEL_KEY)
-      const model = WORLD_RUNTIME_NAI_MODELS.includes(storedModel as WorldRuntimeNovelAiModel) ? storedModel as WorldRuntimeNovelAiModel : 'xialong-v1'
-      const reply = await provider.generate({ prompt, model }, localStorage.getItem(TOKEN_KEY) || '')
+      const nai = getNovelAiRuntimeSettings()
+      const reply = await provider.generate({ prompt, model: nai.model, maxTokens: nai.maxTokens, temperature: nai.temperature }, nai.token)
       const worldMessage: WorldRuntimeMessage = { id: crypto.randomUUID(), sender: 'world', text: reply, createdAt: new Date().toISOString() }
       appendMessage(worldMessage)
 
