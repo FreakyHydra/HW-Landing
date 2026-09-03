@@ -2,21 +2,37 @@
 
 The foundation for the next-generation Howling Whispers roleplay platform.
 
-The `rebrand-v2` branch grows the current Landing visual system into a responsive application shell and Character Forge. It is a clean frontend direction and does not copy the legacy Sandbox or modify the old roleplay arena.
+The `rebrand-v2` branch grows the current Landing visual system into a responsive, world-first application shell. It is a clean frontend direction and does not copy the legacy Sandbox or modify the old roleplay arena.
 
 ## Rebrand V2 foundation
 
 - route-driven application shell for Forge, Roleplay, Archive and Settings
-- standard Character Card V2 as the canonical portable character format
+- World Forge as the root of the RP data hierarchy
+- structured world lore, rules, species, locations, factions, families, family trees, memory and timeline
+- standard Character Card V2 as the canonical portable character format inside a selected world
 - V2 JSON import, validation, live preview and export
 - local character and persona repositories behind persistence interfaces
 - separate runtime character development record
 - observations and explicit evolution proposal decisions
 - isolated, deliberately incomplete HWV2 migration boundary
 - provider-neutral Coda Core event and adapter contracts
+- persistent desktop navigation, compact tablet rail and mobile drawer
+- responsive Forge dashboard with recent worlds, world statistics and real local activity
+- semantic Dark, Light and System themes, with persisted explicit choices and an early-load theme initializer
 - responsive desktop, tablet and phone layouts derived from Landing, Analog and the RP V2 Character Factory design system
 
-Character identity lives in `cardV2`. Memories, relationships, scene state, observations and evolution proposals live beside the card in `CharacterRecord`; they never enter the portable card without an explicit accepted proposal.
+`WorldRecord` is the root object. Characters carry `worldId` and reference world species, places, family people, factions and known world memories. Character identity lives in `cardV2`. Personal memories, relationships, scene state, observations and evolution proposals live beside the card in `CharacterRecord`; they never enter the portable card without an explicit accepted proposal.
+
+The theme layer is defined entirely through semantic surface, text, border, accent, focus, shadow and glow tokens. Dark mode uses the Analog charcoal and copper character. Light mode uses ivory, cream and pale stone surfaces with a higher-contrast copper, preserving the same brand in daylight.
+
+## Build order
+
+1. Landing and application shell
+2. World Forge
+3. World-aware Character and Persona Forge
+4. Coda Core
+5. Behavior Kernel
+6. New roleplay arena
 
 ## Legacy Landing prototype
 

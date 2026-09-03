@@ -1,14 +1,38 @@
+import type { AppContext } from '../app/router'
+import { escapeHtml } from '../app/html'
 import { shell } from '../app/shell'
 
-export async function renderForge(root: HTMLElement): Promise<void> {
+export async function renderForge(root: HTMLElement, context: AppContext): Promise<void> {
+  const [worlds, characters, personas] = await Promise.all([
+    context.worlds.list(), context.characters.list(), context.personas.list(),
+  ])
+  const recentWorlds = [...worlds].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4)
+  const families = worlds.reduce((total, world) => total + world.families.length, 0)
+  const memories = worlds.reduce((total, world) => total + world.memories.length, 0)
+  const codaRequested = new URLSearchParams(location.search).get('tool') === 'coda'
+
   root.innerHTML = shell('/forge/', `
-    <section class="module-intro-bar"><div><i class="lamp live"></i><span>FORGE FOUNDATION ACTIVE</span></div><p>Portable identity stays separate from developed story state.</p></section>
-    <section class="forge-grid">
-      <a class="forge-module instrument-panel" href="/forge/characters/" data-nav><span class="module-index">01</span><div><p class="eyebrow">STANDARD V2</p><h2>Characters</h2><p>Author portable cards and review the runtime state that grows around them.</p></div><b>OPEN MODULE ↗</b></a>
-      <a class="forge-module instrument-panel" href="/forge/personas/" data-nav><span class="module-index">02</span><div><p class="eyebrow">PLAYER IDENTITY</p><h2>Personas</h2><p>Create the player’s place in the fiction without disguising it as a character card.</p></div><b>OPEN MODULE ↗</b></a>
-      <a class="forge-module instrument-panel secondary" href="/forge/lore/" data-nav><span class="module-index">03</span><div><p class="eyebrow">RESERVED</p><h2>Lore</h2><p>Character books and shared world knowledge will be composed here.</p></div><b>VIEW SHELL ↗</b></a>
-      <a class="forge-module instrument-panel secondary" href="/forge/worlds/" data-nav><span class="module-index">04</span><div><p class="eyebrow">RESERVED</p><h2>Worlds</h2><p>World identity, rules and connected lore remain a separate domain.</p></div><b>VIEW SHELL ↗</b></a>
+    <section class="dashboard-hero instrument-panel">
+      <div><p class="eyebrow">WORLD-FIRST CREATIVE SYSTEM</p><h2>Build the reality. Let every story grow inside it.</h2><p>Worlds hold rules, places, people and persistent history. Portable V2 characters connect to that context without duplicating or silently rewriting it.</p><div class="action-row"><a class="machine-button primary" href="/forge/worlds/create/" data-nav>CREATE NEW WORLD</a><a class="machine-button" href="/forge/worlds/" data-nav>VIEW WORLD LIBRARY</a></div></div>
+      <aside class="dashboard-note"><strong>FOUNDATION ORDER</strong><p>World canon comes first. Characters inherit only the context that is relevant to them.</p></aside>
     </section>
-    <section class="coda-dock instrument-panel"><div class="status-cluster"><i class="lamp"></i><span>CODA CORE · NOT CONNECTED</span></div><div><h3>Integration rail prepared</h3><p>Generation, expansion, story analysis, observations, proposals, canon comparison, lore and persona assistance have typed event boundaries. No Discord dependency is present.</p></div><button class="machine-button" disabled>COMING LATER</button></section>
-  `, 'The Forge', 'AUTHORING WORKBENCH')
+    <section class="stat-grid" aria-label="Forge overview">
+      <article class="stat-card"><b>${worlds.length}</b><span>Worlds</span></article>
+      <article class="stat-card"><b>${characters.length}</b><span>World-bound characters</span></article>
+      <article class="stat-card"><b>${families}</b><span>Families</span></article>
+      <article class="stat-card"><b>${memories}</b><span>World memories</span></article>
+    </section>
+    <section class="dashboard-grid">
+      <article class="dashboard-section instrument-panel"><header class="section-heading"><div><p class="eyebrow">RETURN TO A REALITY</p><h2>Recent worlds</h2></div><a href="/forge/worlds/" data-nav>VIEW ALL</a></header><div class="recent-world-list">
+        ${recentWorlds.length ? recentWorlds.map((world) => `<a class="recent-world-item" href="/forge/worlds/edit/${encodeURIComponent(world.id)}/" data-nav><span>${escapeHtml(world.identity.name.slice(0, 1).toUpperCase())}</span><div><strong>${escapeHtml(world.identity.name)}</strong><small>${world.locations.length} places · ${world.families.length} families · ${world.memories.length} memories</small></div><b>OPEN →</b></a>`).join('') : '<div class="empty-note">No worlds yet. Create the first reality container to begin.</div>'}
+      </div></article>
+      <article class="dashboard-section instrument-panel"><header class="section-heading"><div><p class="eyebrow">CURRENT STATE</p><h2>Activity</h2></div></header><div class="activity-list">
+        ${recentWorlds.length ? recentWorlds.slice(0, 3).map((world) => `<p><strong>${escapeHtml(world.identity.name)}</strong><br />Updated ${new Date(world.updatedAt).toLocaleDateString()}</p>`).join('') : '<p>World activity will appear here as realities are created and developed.</p>'}
+        <p><strong>${personas.length} ${personas.length === 1 ? 'persona' : 'personas'}</strong><br />Player identity remains separate from Character Card V2.</p>
+      </div></article>
+    </section>
+    <section class="coda-dock instrument-panel" ${codaRequested ? 'tabindex="-1"' : ''}><div class="status-cluster"><i class="lamp"></i><span>CODA CORE · PHASE 4</span></div><div><h3>Provider-neutral integration boundary ready</h3><p>Coda will receive world context before future character generation, lore work, memory analysis or development proposals. No disconnected mock assistant has been added.</p></div><button class="machine-button" disabled>COMING LATER</button></section>
+  `, 'The Forge', 'CREATIVE CONTROL CENTER')
+
+  if (codaRequested) root.querySelector<HTMLElement>('.coda-dock')?.focus()
 }

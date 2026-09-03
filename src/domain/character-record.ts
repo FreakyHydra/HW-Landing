@@ -25,7 +25,13 @@ export type EvolutionProposal = {
 
 export type CharacterRecord = {
   id: string
+  worldId: string
   cardV2: CharacterCardV2
+  speciesId?: string
+  familyPersonIds: string[]
+  factionIds: string[]
+  homeLocationId?: string
+  knownWorldMemoryIds: string[]
   developedCanon: string[]
   memories: string[]
   relationships: Record<string, string>

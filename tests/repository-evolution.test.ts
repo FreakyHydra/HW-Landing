@@ -6,7 +6,7 @@ import { MemoryRepository } from '../src/data/repositories.ts'
 
 function record(): CharacterRecord {
   return {
-    id: 'mira', cardV2: createEmptyCharacterCardV2(), developedCanon: [], memories: [], relationships: {}, sceneState: {}, observations: [],
+    id: 'mira', worldId: 'bitterroot', cardV2: createEmptyCharacterCardV2(), familyPersonIds: [], factionIds: [], knownWorldMemoryIds: [], developedCanon: [], memories: [], relationships: {}, sceneState: {}, observations: [],
     evolutionProposals: [{ id: 'p1', source: 'scene-4', timestamp: '2026-09-01T00:00:00.000Z', confidence: .82, evidenceCount: 3, targetField: 'personality', proposedValue: 'Taps her claws against metal when anxious.', status: 'pending' }],
     createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z',
   }

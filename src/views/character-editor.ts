@@ -6,9 +6,9 @@ import { transitionProposal, type CharacterRecord, type EvolutionProposal, type 
 
 const textFields = ['name', 'description', 'personality', 'scenario', 'first_mes', 'mes_example', 'creator_notes', 'system_prompt', 'post_history_instructions', 'creator', 'character_version'] as const
 
-function newRecord(): CharacterRecord {
+function newRecord(worldId: string): CharacterRecord {
   const now = new Date().toISOString()
-  return { id: uid('char'), cardV2: createEmptyCharacterCardV2(), developedCanon: [], memories: [], relationships: {}, sceneState: {}, observations: [], evolutionProposals: [], createdAt: now, updatedAt: now }
+  return { id: uid('char'), worldId, cardV2: createEmptyCharacterCardV2(), familyPersonIds: [], factionIds: [], knownWorldMemoryIds: [], developedCanon: [], memories: [], relationships: {}, sceneState: {}, observations: [], evolutionProposals: [], createdAt: now, updatedAt: now }
 }
 
 function field(name: string, label: string, value: string, hint = '', rows = 0): string {
@@ -40,20 +40,26 @@ function previewMarkup(card: CharacterCardV2): string {
   <details class="json-preview"><summary>Inspect portable JSON</summary><pre>${escapeHtml(JSON.stringify(card, null, 2))}</pre></details>`
 }
 
-export async function renderCharacterEditor(root: HTMLElement, context: AppContext, navigate: Navigate, id?: string): Promise<void> {
+export async function renderCharacterEditor(root: HTMLElement, context: AppContext, navigate: Navigate, id?: string, requestedWorldId?: string): Promise<void> {
   const existingRecord = id ? await context.characters.get(id) : undefined
   if (id && !existingRecord) {
     root.innerHTML = shell(location.pathname, '<section class="empty-state instrument-panel"><h2>Character not found</h2><a class="machine-button" href="/forge/characters/" data-nav>RETURN TO LIBRARY</a></section>', 'Character not found')
     return
   }
-  let record: CharacterRecord = existingRecord ?? newRecord()
+  let record: CharacterRecord = existingRecord ?? newRecord(requestedWorldId || '')
+  const worlds = await context.worlds.list()
+  const selectedWorld = worlds.find((world) => world.id === record.worldId)
+  if (!selectedWorld && !id) {
+    navigate('/forge/characters/create/')
+    return
+  }
   const card = record.cardV2
   const bookJson = card.data.character_book ? JSON.stringify(card.data.character_book, null, 2) : ''
 
   root.innerHTML = shell(location.pathname, `
     <section class="editor-toolbar instrument-panel">
       <a href="/forge/characters/" data-nav class="text-link">← CHARACTER LIBRARY</a>
-      <div class="editor-status"><i class="lamp live"></i><span id="save-status">LOCAL WORKING COPY</span></div>
+      <div class="editor-status"><i class="lamp ${selectedWorld ? 'live' : ''}"></i><span id="save-status">${selectedWorld ? `WORLD · ${escapeHtml(selectedWorld.identity.name)}` : 'WORLD ASSIGNMENT REQUIRED'}</span></div>
       <div class="action-row"><button class="machine-button" id="export-card">EXPORT V2</button><button class="machine-button primary" id="save-card">SAVE CHARACTER</button></div>
     </section>
     <nav class="editor-tabs" aria-label="Character editor sections" role="tablist">
@@ -67,7 +73,9 @@ export async function renderCharacterEditor(root: HTMLElement, context: AppConte
       <form class="editor-stack" id="character-form" novalidate>
         <section class="editor-panel instrument-panel" data-panel="identity">
           <header class="module-title"><div><p class="eyebrow">MODULE 01</p><h2>Portable identity</h2></div><small>STANDARD CHARACTER CARD V2</small></header>
+          <div class="world-anchor"><div><p class="eyebrow">ROOT WORLD</p><strong>${escapeHtml(selectedWorld?.identity.name || 'Unassigned legacy record')}</strong><p>${escapeHtml(selectedWorld?.identity.description || 'Select a world before this character can be saved.')}</p></div><label class="field-control"><span class="field-head">World</span><select name="worldId" ${selectedWorld ? 'disabled' : ''}><option value="">Select world</option>${worlds.map((world) => `<option value="${world.id}" ${world.id === record.worldId ? 'selected' : ''}>${escapeHtml(world.identity.name)}</option>`).join('')}</select></label></div>
           <div class="field-grid">${field('name', 'Name', card.data.name, 'Character name')}${field('character_version', 'Card version', card.data.character_version, '1.0')}${field('creator', 'Creator', card.data.creator, 'Creator name')}</div>
+          ${selectedWorld ? `<div class="world-reference-grid"><label class="field-control"><span class="field-head">Species</span><select name="speciesId"><option value="">Not selected</option>${selectedWorld.species.map((species) => `<option value="${species.id}" ${species.id === record.speciesId ? 'selected' : ''}>${escapeHtml(species.name)}</option>`).join('')}</select></label><label class="field-control"><span class="field-head">Home location</span><select name="homeLocationId"><option value="">Not selected</option>${selectedWorld.locations.map((location) => `<option value="${location.id}" ${location.id === record.homeLocationId ? 'selected' : ''}>${escapeHtml(location.name)}</option>`).join('')}</select></label><label class="field-control"><span class="field-head">Factions</span><select name="factionIds" multiple>${selectedWorld.factions.map((faction) => `<option value="${faction.id}" ${record.factionIds?.includes(faction.id) ? 'selected' : ''}>${escapeHtml(faction.name)}</option>`).join('')}</select></label><label class="field-control"><span class="field-head">Family people</span><select name="familyPersonIds" multiple>${selectedWorld.families.flatMap((family) => family.people.map((person) => `<option value="${person.id}" ${record.familyPersonIds?.includes(person.id) ? 'selected' : ''}>${escapeHtml(family.name)} · ${escapeHtml(person.name)}</option>`)).join('')}</select></label><label class="field-control wide-reference"><span class="field-head">Known world memories</span><select name="knownWorldMemoryIds" multiple>${selectedWorld.memories.map((memory) => `<option value="${memory.id}" ${record.knownWorldMemoryIds?.includes(memory.id) ? 'selected' : ''}>${escapeHtml(memory.title)}</option>`).join('')}</select></label></div>` : ''}
           ${field('description', 'Description', card.data.description, 'Who they are, appearance, identity and enduring details...', 7)}
           ${field('personality', 'Personality', card.data.personality, 'Core behavior, temperament and contradictions...', 6)}
           ${field('scenario', 'Scenario', card.data.scenario, 'The starting situation or shared premise...', 5)}
@@ -118,6 +126,15 @@ export async function renderCharacterEditor(root: HTMLElement, context: AppConte
   const form = root.querySelector<HTMLFormElement>('#character-form')!
 
   function syncFromForm(): void {
+    record.worldId = (form.elements.namedItem('worldId') as HTMLSelectElement)?.value || ''
+    record.speciesId = (form.elements.namedItem('speciesId') as HTMLSelectElement)?.value || undefined
+    record.homeLocationId = (form.elements.namedItem('homeLocationId') as HTMLSelectElement)?.value || undefined
+    const factionSelect = form.elements.namedItem('factionIds') as HTMLSelectElement | null
+    record.factionIds = factionSelect ? [...factionSelect.selectedOptions].map((option) => option.value) : []
+    const familySelect = form.elements.namedItem('familyPersonIds') as HTMLSelectElement | null
+    record.familyPersonIds = familySelect ? [...familySelect.selectedOptions].map((option) => option.value) : []
+    const memorySelect = form.elements.namedItem('knownWorldMemoryIds') as HTMLSelectElement | null
+    record.knownWorldMemoryIds = memorySelect ? [...memorySelect.selectedOptions].map((option) => option.value) : []
     for (const key of textFields) {
       const input = form.elements.namedItem(key) as HTMLInputElement | HTMLTextAreaElement | null
       if (input) card.data[key] = input.value
@@ -163,6 +180,7 @@ export async function renderCharacterEditor(root: HTMLElement, context: AppConte
       syncFromForm()
       const result = validateCharacterCardV2(card)
       if (!result.success) throw new Error(result.errors[0])
+      if (!record.worldId || !(await context.worlds.get(record.worldId))) throw new Error('Select a valid world before saving this character.')
       await context.characters.save(record)
       root.querySelector('#save-status')!.textContent = 'LOCAL CHECKPOINT SAVED'
       return true

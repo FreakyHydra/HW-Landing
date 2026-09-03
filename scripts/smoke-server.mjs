@@ -38,11 +38,13 @@ async function waitForHealth() {
 }
 
 async function verifyApplicationRoutes() {
-  for (const route of ['/', '/forge/', '/forge/characters/create/', '/forge/personas/', '/roleplay/', '/archive/', '/settings/']) {
+  for (const route of ['/', '/forge/', '/forge/worlds/', '/forge/worlds/create/', '/forge/characters/', '/forge/characters/create/', '/forge/personas/', '/roleplay/', '/archive/', '/settings/']) {
     const response = await fetch(`http://127.0.0.1:${port}${route}`)
     const body = await response.text()
     if (!response.ok || !body.includes('id="app"')) throw new Error(`Application route failed: ${route}`)
   }
+  const theme = await fetch(`http://127.0.0.1:${port}/theme-init.js`)
+  if (!theme.ok || !(await theme.text()).includes('prefers-color-scheme')) throw new Error('Early theme initializer was not served')
 }
 
 try {

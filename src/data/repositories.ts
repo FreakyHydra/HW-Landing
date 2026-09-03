@@ -1,5 +1,6 @@
 import type { CharacterRecord } from '../domain/character-record'
 import type { Persona } from '../domain/persona'
+import type { WorldRecord } from '../domain/world'
 
 export interface CharacterRepository {
   list(): Promise<CharacterRecord[]>
@@ -12,6 +13,13 @@ export interface PersonaRepository {
   list(): Promise<Persona[]>
   get(id: string): Promise<Persona | undefined>
   save(persona: Persona): Promise<void>
+  remove(id: string): Promise<void>
+}
+
+export interface WorldRepository {
+  list(): Promise<WorldRecord[]>
+  get(id: string): Promise<WorldRecord | undefined>
+  save(world: WorldRecord): Promise<void>
   remove(id: string): Promise<void>
 }
 
@@ -54,4 +62,8 @@ export class LocalCharacterRepository extends LocalRepository<CharacterRecord> i
 
 export class LocalPersonaRepository extends LocalRepository<Persona> implements PersonaRepository {
   constructor() { super('hw.forge.personas.v1') }
+}
+
+export class LocalWorldRepository extends LocalRepository<WorldRecord> implements WorldRepository {
+  constructor() { super('hw.forge.worlds.v1') }
 }
