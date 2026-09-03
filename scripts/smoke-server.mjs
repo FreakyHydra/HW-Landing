@@ -37,9 +37,18 @@ async function waitForHealth() {
   throw new Error(`Health endpoint did not become ready. ${stderr}`)
 }
 
+async function verifyApplicationRoutes() {
+  for (const route of ['/', '/forge/', '/forge/characters/create/', '/forge/personas/', '/roleplay/', '/archive/', '/settings/']) {
+    const response = await fetch(`http://127.0.0.1:${port}${route}`)
+    const body = await response.text()
+    if (!response.ok || !body.includes('id="app"')) throw new Error(`Application route failed: ${route}`)
+  }
+}
+
 try {
   await waitForHealth()
-  console.log('HW Landing server smoke test passed.')
+  await verifyApplicationRoutes()
+  console.log('HW Landing application and route smoke tests passed.')
 } finally {
   child.kill('SIGTERM')
 }

@@ -1,10 +1,26 @@
-# HW Landing
+# HW Landing · Rebrand V2
 
-The front gate for the Howling Whispers ecosystem.
+The foundation for the next-generation Howling Whispers roleplay platform.
 
-## v0.3 prototype
+The `rebrand-v2` branch grows the current Landing visual system into a responsive application shell and Character Forge. It is a clean frontend direction and does not copy the legacy Sandbox or modify the old roleplay arena.
 
-The `dev` branch is the cinematic gated landing experience:
+## Rebrand V2 foundation
+
+- route-driven application shell for Forge, Roleplay, Archive and Settings
+- standard Character Card V2 as the canonical portable character format
+- V2 JSON import, validation, live preview and export
+- local character and persona repositories behind persistence interfaces
+- separate runtime character development record
+- observations and explicit evolution proposal decisions
+- isolated, deliberately incomplete HWV2 migration boundary
+- provider-neutral Coda Core event and adapter contracts
+- responsive desktop, tablet and phone layouts derived from Landing, Analog and the RP V2 Character Factory design system
+
+Character identity lives in `cardV2`. Memories, relationships, scene state, observations and evolution proposals live beside the card in `CharacterRecord`; they never enter the portable card without an explicit accepted proposal.
+
+## Legacy Landing prototype
+
+The `dev` branch remains the cinematic gated landing experience from which this branch was created:
 
 - animated Howling Whispers wolf emblem with pointer-reactive metal highlight
 - celestial copper theme, pointer aura, drifting particles and ripple wake
