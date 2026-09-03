@@ -160,7 +160,7 @@ export function renderProjects(grid: HTMLElement, session: Session) {
       const link = document.createElement('a')
       link.className = 'project-action'
       link.href = project.href!
-      link.textContent = 'ENTER WORLD'
+      link.textContent = project.actionLabel || 'ENTER WORLD'
       const arrow = document.createElement('span')
       arrow.textContent = '↗'
       link.append(arrow)
