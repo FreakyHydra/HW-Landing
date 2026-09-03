@@ -80,6 +80,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
     navigate('/forge/worlds/')
     return
   }
+  const activeWorld = world
 
   const [characters, personas] = await Promise.all([context.characters.list(), context.personas.list()])
   const sessionRepository = new LocalWorldRuntimeSessionRepository()
@@ -220,7 +221,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
     const personaId = persona?.id || DEFAULT_PERSONA_ID
     const turnInhabitants = turnInhabitantsFor(playerMessage.text)
     const relationshipMap = Object.fromEntries(turnInhabitants.map((inhabitant) => [inhabitant.id, relationshipRepository.get(inhabitant.id, personaId)]))
-    const prompt = compileWorldRuntimePrompt({ world, session, playerTurn: playerMessage.text, inhabitants: turnInhabitants, persona, relationships: relationshipMap })
+    const prompt = compileWorldRuntimePrompt({ world: activeWorld, session, playerTurn: playerMessage.text, inhabitants: turnInhabitants, persona, relationships: relationshipMap })
     const nai = getNovelAiRuntimeSettings()
     const reply = await provider.generate({
       prompt,
@@ -250,7 +251,7 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
 
   async function impersonate(direction = '', baseSession: WorldRuntimeSession = session): Promise<string> {
     const nai = getNovelAiRuntimeSettings()
-    const prompt = compileWorldImpersonationPrompt({ world, session: baseSession, persona, inhabitants, direction })
+    const prompt = compileWorldImpersonationPrompt({ world: activeWorld, session: baseSession, persona, inhabitants, direction })
     const raw = await provider.generateRaw({
       prompt,
       model: nai.model,
