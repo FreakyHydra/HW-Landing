@@ -3,17 +3,36 @@ import { escapeHtml, uid } from '../app/html'
 import { shell, toast } from '../app/shell'
 import { copyPublicWorldForLocal } from '../data/public-worlds'
 import type { WorldRecord } from '../domain/world'
+import type { WorldRuntimeSession } from '../runtime/world-brain'
+
+function savedSession(worldId: string): WorldRuntimeSession | undefined {
+  try {
+    const value = localStorage.getItem(`hw.runtime.world.${worldId}.v1`)
+    return value ? JSON.parse(value) as WorldRuntimeSession : undefined
+  } catch { return undefined }
+}
+
+function formatSessionAge(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Saved session'
+  const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000))
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
 
 function worldCard(world: WorldRecord, source: 'public' | 'local', selection?: { tab: string; action: string }): string {
   const worldId = encodeURIComponent(world.id)
   const manageUrl = `/forge/worlds/edit/${worldId}/${selection ? `?tab=${selection.tab}` : ''}`
   const enterUrl = `/roleplay/world/${worldId}/`
-  const newSessionUrl = `${enterUrl}?new=1`
-  const hasSession = localStorage.getItem(`hw.runtime.world.${world.id}.v1`) !== null
+  const session = savedSession(world.id)
   const sourceLabel = source === 'public' ? 'PUBLIC STARTER' : 'LOCAL WORLD'
-  const runtimeActions = hasSession
-    ? `<a class="machine-button primary" href="${enterUrl}" data-nav>RESUME</a><a class="machine-button" href="${newSessionUrl}" data-nav>NEW SESSION</a>`
-    : `<a class="machine-button primary" href="${newSessionUrl}" data-nav>START WORLD</a>`
+  const runtimeActions = session
+    ? `<a class="machine-button primary" href="${enterUrl}" data-nav>RESUME</a><button class="machine-button" type="button" data-reset-world="${worldId}" data-world-name="${escapeHtml(world.identity.name)}">START OVER</button>`
+    : `<a class="machine-button primary" href="${enterUrl}" data-nav>OPEN WORLD</a>`
   const actions = source === 'public'
     ? `${runtimeActions}<button class="machine-button" type="button" data-copy-public-world="${worldId}">COPY TO LIBRARY</button>`
     : `${runtimeActions}<a class="machine-button" href="${manageUrl}" data-nav>${selection?.action || 'MANAGE WORLD'}</a>`
@@ -25,10 +44,21 @@ function worldCard(world: WorldRecord, source: 'public' | 'local', selection?: {
         <p class="eyebrow">${escapeHtml(world.identity.genre || 'UNCLASSIFIED REALITY')} · ${sourceLabel}</p>
         <h2>${escapeHtml(world.identity.name || 'Untitled world')}</h2>
         <p class="world-card-description">${escapeHtml(world.identity.description || 'No world description yet.')}</p>
-        <div class="world-counts"><span>${world.locations.length} places</span><span>${world.societies.length} societies</span><span>${world.families.length} families</span><span>${world.factions.length} factions</span><span>${world.memories.length} memories</span></div>
+        <div class="world-counts"><span>${world.locations.length} places</span><span>${world.societies.length} societies</span><span>${world.families.length} families</span><span>${world.factions.length} factions</span><span>${world.memories.length} memories</span>${session ? `<span>Saved ${formatSessionAge(session.updatedAt)}</span>` : ''}</div>
       </div>
       <div class="card-actions">${actions}</div>
     </article>`
+}
+
+function recentSessionCard(world: WorldRecord, session: WorldRuntimeSession): string {
+  const worldId = encodeURIComponent(world.id)
+  const location = world.locations.find((item) => item.id === session.currentLocationId)
+  const turns = session.history.filter((message) => message.sender === 'player').length
+  return `<a class="recent-world-session" href="/roleplay/world/${worldId}/" data-nav>
+    <span class="recent-world-mark">${escapeHtml(world.identity.name.slice(0, 1).toUpperCase() || 'W')}</span>
+    <span class="recent-world-copy"><strong>${escapeHtml(world.identity.name)}</strong><small>${escapeHtml(location?.name || 'Location not established')} · ${turns} ${turns === 1 ? 'turn' : 'turns'} · ${formatSessionAge(session.updatedAt)}</small></span>
+    <b>RESUME →</b>
+  </a>`
 }
 
 export async function renderWorldLibrary(root: HTMLElement, context: AppContext, navigate: Navigate): Promise<void> {
@@ -44,8 +74,15 @@ export async function renderWorldLibrary(root: HTMLElement, context: AppContext,
   }
   const selection = section ? sections[section] : undefined
   const totalWorlds = worlds.length + publicWorlds.length
+  const allWorlds = [...publicWorlds, ...worlds]
+  const uniqueWorlds = [...new Map(allWorlds.map((world) => [world.id, world])).values()]
+  const recentSessions = uniqueWorlds
+    .map((world) => ({ world, session: savedSession(world.id) }))
+    .filter((item): item is { world: WorldRecord; session: WorldRuntimeSession } => Boolean(item.session))
+    .sort((a, b) => new Date(b.session.updatedAt).getTime() - new Date(a.session.updatedAt).getTime())
 
   root.innerHTML = shell('/forge/worlds/', `
+    ${recentSessions.length ? `<section class="recent-worlds instrument-panel"><header class="module-title"><div><p class="eyebrow">CONTINUE PLAYING</p><h2>Opened worlds</h2></div><small>${recentSessions.length} SAVED ${recentSessions.length === 1 ? 'WORLD' : 'WORLDS'}</small></header><p class="module-intro">Jump between worlds without resetting them. Each world keeps its own conversation and current location.</p><div class="recent-world-list">${recentSessions.map(({ world, session }) => recentSessionCard(world, session)).join('')}</div></section>` : ''}
     <section class="library-toolbar">
       <div><p>${totalWorlds} ${totalWorlds === 1 ? 'living reality' : 'living realities'} · ${publicWorlds.length} public starter${publicWorlds.length === 1 ? '' : 's'}</p></div>
       <a class="machine-button primary" href="/forge/worlds/create/" data-nav>CREATE WORLD</a>
@@ -56,6 +93,16 @@ export async function renderWorldLibrary(root: HTMLElement, context: AppContext,
       ${totalWorlds ? '' : `<div class="empty-state instrument-panel world-empty"><span>◎</span><h2>Create the reality first</h2><p>Define the world, its rules, people and remembered history before creating anyone inside it.</p><a class="machine-button primary" href="/forge/worlds/create/" data-nav>CREATE FIRST WORLD</a></div>`}
     </section>
   `, selection?.title || 'World Library', selection?.eyebrow || 'FORGE · ROOT REALITIES')
+
+  root.querySelectorAll<HTMLButtonElement>('[data-reset-world]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const worldId = decodeURIComponent(button.dataset.resetWorld || '')
+      const worldName = button.dataset.worldName || 'this world'
+      const accepted = window.confirm(`Start ${worldName} over?\n\nThis deletes only this world's current conversation. Other opened worlds are kept.`)
+      if (!accepted) return
+      navigate(`/roleplay/world/${encodeURIComponent(worldId)}/?new=1`)
+    })
+  })
 
   root.querySelectorAll<HTMLButtonElement>('[data-copy-public-world]').forEach((button) => {
     button.addEventListener('click', async () => {
