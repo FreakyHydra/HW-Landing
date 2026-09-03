@@ -5,9 +5,12 @@ import './styles/recent-worlds.css'
 import { AppRouter } from './app/router'
 import { LocalCharacterRepository, LocalPersonaRepository, LocalWorldRepository } from './data/repositories'
 import { CanonicalPublicWorldRepository } from './data/canonical-public-worlds'
+import { installPlayerMessageColors } from './runtime/player-message-colors'
 
 const app = document.querySelector<HTMLDivElement>('#app')
 if (!app) throw new Error('Application root is missing')
+
+installPlayerMessageColors()
 
 const router = new AppRouter(app, {
   characters: new LocalCharacterRepository(),
