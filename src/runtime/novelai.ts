@@ -13,6 +13,22 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function stripLeadingRuntimeDirective(text: string): string {
+  const firstBreak = text.search(/\n\s*\n|\s{2,}(?=[A-Z"“])/)
+  const head = firstBreak >= 0 ? text.slice(0, firstBreak).trim() : text.trim()
+  const directiveSignals = [
+    /\bno invented\b/i,
+    /\bdo not assume\b/i,
+    /\brespect .+ relationship state\b/i,
+    /\bdefault to (?:silence|environment|another inhabitant)\b/i,
+    /\bshort natural response\b/i,
+    /\bdo not (?:create|invent|output|continue)\b/i,
+  ]
+  const matches = directiveSignals.filter((pattern) => pattern.test(head)).length
+  if (matches < 2) return text
+  return firstBreak >= 0 ? text.slice(firstBreak).trim() : ''
+}
+
 export function cleanWorldRuntimeReply(raw: string, characterNames: string[] = []): string {
   let text = raw.trim()
 
@@ -25,6 +41,7 @@ export function cleanWorldRuntimeReply(raw: string, characterNames: string[] = [
 
   text = text.replace(/^\s*```(?:text|markdown)?\s*/i, '').replace(/\s*```\s*$/i, '')
   text = text.replace(/^\s*(?:assistant|world runtime|response)\s*:\s*/i, '')
+  text = stripLeadingRuntimeDirective(text)
 
   // The model must not continue the player's side of the exchange.
   const playerContinuation = text.search(/(?:^|\n|\s{2,})Player\s*:/i)
