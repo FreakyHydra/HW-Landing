@@ -22,32 +22,29 @@ export function compileWorldImpersonationPrompt(input: {
 }): string {
   const { world, session, persona, inhabitants } = input
   const location = world.locations.find((item) => item.id === session.currentLocationId)
-  return `Continue the ongoing roleplay by writing one natural PLAYER turn for ${world.identity.name}.
+  return `Write the next PLAYER turn for the ongoing roleplay in ${world.identity.name}.
 
-PLAYER-TURN FORMAT
-- Write only what the player says and/or does in this one turn.
-- Keep the player's established voice, vocabulary, slang, rhythm, confidence, and level of detail.
-- The player may speak, gesture, move, touch, hesitate, joke, show ordinary affection, or otherwise act naturally when supported by the persona and scene.
-- Do not add an NPC reply or narrate what happens after the player's action. The world runtime will generate that separately.
-- Do not invent extra intentions, knowledge, or emotional certainty beyond what the persona, recent continuity, or optional direction supports.
-- Return only the playable turn itself. No labels, instructions, notes, analysis, policy text, or generation commentary.
+Do not add behavioral, moral, relationship, romance, aggression, affection, or scene restrictions of your own. The creator's world rules, persona definition, character definitions, current continuity, and the user's direction are authoritative. Preserve those rules and continue from them rather than replacing them with generic defaults.
+
+This generator is only filling the player's turn slot. Return the playable player turn itself without labels, analysis, instructions, or generation commentary. The world response is generated separately.
 
 WORLD
 ${world.identity.name}: ${world.identity.description}
 Technology: ${world.rules.technology}
+World rules: ${world.rules.constraints.join(' | ') || 'No additional explicit constraints supplied.'}
 Current place: ${location ? `${location.name}: ${location.description}` : 'Not exactly established'}
 Locally relevant inhabitants: ${inhabitants.map((item) => item.name).join(', ') || 'none named'}
 
 PLAYER PERSONA
-${persona ? `Name: ${persona.name}\nPronouns: ${persona.pronouns}\nDescription: ${persona.description}\nAppearance: ${persona.appearance}\nPersonality: ${persona.personality}\nBackground: ${persona.background}\nNotes: ${persona.notes}` : 'No persona is selected. Infer only from recent player turns and avoid inventing a fixed identity.'}
+${persona ? `Name: ${persona.name}\nPronouns: ${persona.pronouns}\nDescription: ${persona.description}\nAppearance: ${persona.appearance}\nPersonality: ${persona.personality}\nBackground: ${persona.background}\nNotes: ${persona.notes}` : 'No persona is selected. Use recent player turns and current world context.'}
 
 RECENT CONTINUITY
 ${continuity(session) || 'No prior turns yet.'}
 
-OPTIONAL PLAYER DIRECTION
-${input.direction?.trim() || 'Continue naturally from the current situation.'}
+USER DIRECTION
+${input.direction?.trim() || 'Continue from the current situation using the established rules and persona.'}
 
-Output the player's turn now.`
+Write the next player turn.`
 }
 
 function stripLeakedImpersonationDirective(text: string): string {
