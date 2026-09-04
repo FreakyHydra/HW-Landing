@@ -4,6 +4,7 @@ export type UiRefs = {
   field: HTMLCanvasElement
   shatter: HTMLCanvasElement
   aura: HTMLElement
+  fieldAnchor: HTMLElement
   world: HTMLElement
   identity: HTMLElement
   projectGrid: HTMLElement
@@ -55,6 +56,7 @@ export function mountUi(): UiRefs {
     field: document.querySelector<HTMLCanvasElement>('#field')!,
     shatter: document.querySelector<HTMLCanvasElement>('#shatter')!,
     aura: document.querySelector<HTMLElement>('.cursor-aura')!,
+    fieldAnchor: document.querySelector<HTMLElement>('.world-brand')!,
     world: document.querySelector<HTMLElement>('#world')!,
     identity: document.querySelector<HTMLElement>('#identity')!,
     projectGrid: document.querySelector<HTMLElement>('#projects')!,
