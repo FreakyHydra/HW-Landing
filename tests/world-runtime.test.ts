@@ -6,7 +6,7 @@ import { createEmptyCharacterCardV2 } from '../src/domain/character-card-v2.ts'
 import type { CharacterRecord } from '../src/domain/character-record.ts'
 import { chooseInitialLocation, compileWorldRuntimePrompt, resolveRuntimeInhabitants, type WorldRuntimeSession } from '../src/runtime/world-brain.ts'
 import { applyRelationshipEvent, evaluateRelationshipTurn } from '../src/runtime/relationship-v2.ts'
-import { cleanWorldRuntimeReply } from '../src/runtime/novelai.ts'
+import { cleanWorldRuntimeReply, enforceRoleplayResponseLength } from '../src/runtime/novelai.ts'
 import { cleanImpersonatedPlayerTurn, compileWorldImpersonationPrompt } from '../src/runtime/world-turn-tools.ts'
 
 test('Bitterroot enters a real location and resolves Holt inhabitants without selecting a character', async () => {
@@ -47,6 +47,19 @@ test('NovelAI cleanup removes leaked reasoning before roleplay prose', () => {
   const raw = 'Show only observable facts and no metadata.</think>\nRagna steps into view. "Afternoon."'
   assert.equal(cleanWorldRuntimeReply(raw), 'Ragna steps into view. "Afternoon."')
   assert.equal(cleanWorldRuntimeReply('<think>private reasoning</think>\nThe wind moves through the pines.'), 'The wind moves through the pines.')
+})
+
+test('NovelAI cleanup removes leaked runtime prompt and scene-reset metadata', () => {
+  const raw = 'Pip tugs the quilt higher. “Move over, you are stealing the warm side.”\n\nRagna gives the pair one last glance and turns back toward the hearth. —END—  Style: prose  POV: undefined  Scene: reset  Time: new scene, morning  Location: Brackenjaw Enclave  Tags: summer\nCURRENT SCENE STATE\nRuntime location anchor: Brackenjaw Enclave\nOUTPUT CONTRACT\nReturn only finished roleplay prose suitable for direct display to the player.'
+  const cleaned = cleanWorldRuntimeReply(raw, ['Ragna Holt', 'Pip Holt'])
+  assert.equal(cleaned, 'Pip tugs the quilt higher. “Move over, you are stealing the warm side.”\n\nRagna gives the pair one last glance and turns back toward the hearth.')
+  assert.doesNotMatch(cleaned, /END|Style:|Scene:|CURRENT SCENE STATE|OUTPUT CONTRACT|Runtime location anchor/i)
+})
+
+test('quick roleplay output is hard-capped to two rendered paragraphs', () => {
+  const raw = 'First paragraph with dialogue.\n\nSecond paragraph with the immediate reaction.\n\nThird paragraph that must never render in quick mode.'
+  assert.equal(enforceRoleplayResponseLength(raw, 'quick'), 'First paragraph with dialogue.\n\nSecond paragraph with the immediate reaction.')
+  assert.equal(enforceRoleplayResponseLength(raw, 'immersive'), raw)
 })
 
 test('NovelAI cleanup unwraps transcript formatting and stops player continuation', () => {
