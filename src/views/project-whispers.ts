@@ -42,8 +42,12 @@ function createAudio(): { beep: (frequency?: number, duration?: number) => void;
 
 function looksLikeBrowserFullscreen(): boolean {
   if (document.fullscreenElement) return true
-  const heightClose = Math.abs(window.innerHeight - screen.height) <= 4 || Math.abs(window.innerHeight - screen.availHeight) <= 4
-  const widthClose = Math.abs(window.innerWidth - screen.width) <= 4 || Math.abs(window.innerWidth - screen.availWidth) <= 4
+  const heightTolerance = 96
+  const widthTolerance = 32
+  const heightClose = Math.abs(window.innerHeight - screen.height) <= heightTolerance
+    || Math.abs(window.innerHeight - screen.availHeight) <= heightTolerance
+  const widthClose = Math.abs(window.innerWidth - screen.width) <= widthTolerance
+    || Math.abs(window.innerWidth - screen.availWidth) <= widthTolerance
   return heightClose && widthClose
 }
 
@@ -69,8 +73,8 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
   const log = root.querySelector<HTMLElement>('[data-pw-log]')!
   const diskStage = root.querySelector<HTMLElement>('[data-pw-disk-stage]')!
   const audio = createAudio()
+  const initialViewport = { width: window.innerWidth, height: window.innerHeight }
   let started = false
-  let wasFullscreen = looksLikeBrowserFullscreen()
   let phase: 'world' | 'persona' | 'ready' | 'running' = 'world'
 
   const append = async (line = '', delay = 130) => {
@@ -188,16 +192,15 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
   }
 
   const detectFullscreenTransition = () => {
-    const nowFullscreen = looksLikeBrowserFullscreen()
-    if (!started && nowFullscreen && !wasFullscreen) void boot()
-    wasFullscreen = nowFullscreen
+    if (started) return
+    const nativeFullscreenResize = window.innerHeight >= initialViewport.height + 40
+      && window.innerWidth >= initialViewport.width - 8
+    if (document.fullscreenElement || looksLikeBrowserFullscreen() || nativeFullscreenResize) void boot()
   }
 
-  window.onkeydown = (event) => {
-    if (event.key === 'F11') window.setTimeout(detectFullscreenTransition, 180)
-  }
   window.addEventListener('resize', detectFullscreenTransition)
   document.addEventListener('fullscreenchange', detectFullscreenTransition)
+  window.setTimeout(detectFullscreenTransition, 250)
 
   root.addEventListener('click', (event) => {
     const target = event.target as HTMLElement
