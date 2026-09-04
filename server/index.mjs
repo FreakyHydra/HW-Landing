@@ -30,7 +30,7 @@ app.use((req, res, next) => {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; img-src 'self' blob: https://cdn.discordapp.com data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'",
+      "default-src 'self'; img-src 'self' blob: https://cdn.discordapp.com data:; style-src 'self'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'",
     )
   }
   next()
