@@ -98,6 +98,34 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
     diskStage.querySelector<HTMLButtonElement>('[data-pw-disk]')?.focus()
   }
 
+  const runSimulation = async () => {
+    if (phase !== 'ready') return
+    phase = 'running'
+    diskStage.innerHTML = ''
+    audio.beep(1280, 0.08)
+    await append('')
+    await append('> !run sim', 180)
+    await append('LOCKING WORLD STATE...', 180)
+    await append('STARTING SIMULATION...', 320)
+    audio.seek(4)
+    await wait(420)
+
+    consoleEl.classList.add('pw-handoff')
+    await wait(180)
+    log.textContent = ''
+    diskStage.innerHTML = ''
+    consoleEl.scrollTop = 0
+    consoleEl.classList.remove('pw-handoff')
+
+    await append('PROJECT WHISPERS ONLINE', 180)
+    await append('', 120)
+    await append('WORLD: BITTERROOT', 100)
+    await append("PERSONA: SKYLER · PIP'S FRIEND", 100)
+    await append('LOCATION: BRACKENJAW', 100)
+    await append('', 120)
+    await append('SIMULATION ACTIVE_', 120)
+  }
+
   const boot = async () => {
     if (started) return
     started = true
@@ -166,29 +194,10 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
     await append('TIME ENGINE: 08:00 · DAY 14 · AUTUMN', 110)
     await append('WEATHER ENGINE: LIGHT RAIN', 180)
     await append('')
-    await append('SIMULATION STATE READY', 120)
-    diskStage.innerHTML = `
-      <div class="pw-ready">
-        <div class="pw-command">&gt; <span>!run sim</span></div><br />
-        <button type="button" class="pw-run" data-pw-run>RUN SIMULATION</button>
-      </div>
-    `
-    diskStage.querySelector<HTMLButtonElement>('[data-pw-run]')?.focus()
-  }
-
-  const runSimulation = async () => {
-    if (phase !== 'ready') return
-    phase = 'running'
-    diskStage.innerHTML = ''
-    audio.beep(1280, 0.08)
-    await append('')
-    await append('> !run sim', 180)
-    await append('LOCKING WORLD STATE...', 180)
-    await append('STARTING SIMULATION...', 280)
-    audio.seek(4)
-    await append('')
-    await append('PROJECT WHISPERS ONLINE', 130)
-    await append('THE WORLD IS LISTENING.', 120)
+    await append('SIMULATION STATE READY', 350)
+    diskStage.innerHTML = `<div class="pw-ready"><div class="pw-command">&gt; <span>!run sim</span></div></div>`
+    await wait(700)
+    await runSimulation()
   }
 
   const detectFullscreenTransition = () => {
@@ -207,8 +216,6 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
     if (target.closest('[data-pw-disk]')) {
       if (phase === 'world') void mountWorld()
       else if (phase === 'persona') void mountPersona()
-      return
     }
-    if (target.closest('[data-pw-run]')) void runSimulation()
   })
 }
