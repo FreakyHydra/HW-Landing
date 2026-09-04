@@ -37,7 +37,7 @@ function stripLeakedControlText(text: string): string {
   // starts echoing any runtime section, discard that section and everything after it.
   const internalHeading = /(?:^|\n)\s*(?:CURRENT TURN(?:\s*-\s*HIGHEST AUTHORITY)?|AUTHORITY ORDER|CURRENT SCENE STATE|WORLD RULES(?:\s*-\s*USER AUTHORED AND BINDING IN THIS FICTION)?|WORLD CANON|CURRENT LOCATION(?:\s*-\s*ESTABLISHED FACTS)?|RELEVANT CHARACTERS(?:\s*-\s*CHARACTER SHEETS ARE AUTHORITATIVE)?|PLAYER PERSONA|RELATIONSHIP AND RUNTIME STATE|RECENT CONTINUITY(?:\s*-\s*STRONG BUT BELOW AUTHORED CANON)?|GENERATION INSTRUCTIONS|GROUNDING|AMBIGUOUS INTENT AND NOVEL EXPERIENCES|PROSE QUALITY POLICY|OUTPUT CONTRACT|RESPONSE LENGTH|DIALOGUE BALANCE|TURN MODE|USER DIRECTION)\s*(?:\n|$)/i
   const metadataBlock = /(?:^|\n|\s{2,})(?:Style|POV|Scene|Time|Location|Tags|Season|Weather)\s*:\s*/i
-  const explicitEnd = /(?:^|\n|\s{2,})[—-]*\s*END\s*[—-]*(?=\s|$)/i
+  const explicitEnd = /(?:^|\n|\s+)[—-]*\s*END\s*[—-]*(?=\s|$)/i
   const knownInstructionLeak = /(?:^|\n|\s{2,})(?:Return only finished roleplay prose suitable for direct display|You are the living world runtime for\b|Resolve conflicts in this order:|Authored facts and rules are facts of the current fiction\.)/i
 
   const starts = [internalHeading, metadataBlock, explicitEnd, knownInstructionLeak]
