@@ -40,6 +40,13 @@ function createAudio(): { beep: (frequency?: number, duration?: number) => void;
   return { beep, seek, clunk }
 }
 
+function looksLikeBrowserFullscreen(): boolean {
+  if (document.fullscreenElement) return true
+  const heightClose = Math.abs(window.innerHeight - screen.height) <= 4 || Math.abs(window.innerHeight - screen.availHeight) <= 4
+  const widthClose = Math.abs(window.innerWidth - screen.width) <= 4 || Math.abs(window.innerWidth - screen.availWidth) <= 4
+  return heightClose && widthClose
+}
+
 export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
   document.title = 'Project Whispers · The Howling Whispers'
   root.innerHTML = `
@@ -63,6 +70,7 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
   const diskStage = root.querySelector<HTMLElement>('[data-pw-disk-stage]')!
   const audio = createAudio()
   let started = false
+  let wasFullscreen = looksLikeBrowserFullscreen()
   let phase: 'world' | 'persona' | 'ready' | 'running' = 'world'
 
   const append = async (line = '', delay = 130) => {
@@ -179,9 +187,17 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
     await append('THE WORLD IS LISTENING.', 120)
   }
 
-  window.onkeydown = (event) => {
-    if (event.key === 'F11') void boot()
+  const detectFullscreenTransition = () => {
+    const nowFullscreen = looksLikeBrowserFullscreen()
+    if (!started && nowFullscreen && !wasFullscreen) void boot()
+    wasFullscreen = nowFullscreen
   }
+
+  window.onkeydown = (event) => {
+    if (event.key === 'F11') window.setTimeout(detectFullscreenTransition, 180)
+  }
+  window.addEventListener('resize', detectFullscreenTransition)
+  document.addEventListener('fullscreenchange', detectFullscreenTransition)
 
   root.addEventListener('click', (event) => {
     const target = event.target as HTMLElement
