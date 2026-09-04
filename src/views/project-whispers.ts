@@ -83,6 +83,63 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
     await wait(delay)
   }
 
+  const showRuntimeDemo = () => {
+    log.classList.remove('pw-cursor')
+    log.textContent = ''
+    diskStage.innerHTML = `
+      <section class="pw-runtime" aria-label="Classic phosphor runtime demo">
+        <header class="pw-runtime-head">
+          <div><strong>PROJECT WHISPERS</strong><span>SIMULATION ONLINE</span></div>
+          <div class="pw-runtime-state"><span>WORLD: BITTERROOT</span><span>{{user}}: SKYLER</span><span>BRACKENJAW · 08:00</span></div>
+        </header>
+        <div class="pw-runtime-grid">
+          <aside class="pw-runtime-panel">
+            <strong>RELATIONSHIPS</strong>
+            <span>PIP · FRIEND · 3 YEARS</span>
+            <span>RAGNA · KNOWN</span>
+          </aside>
+          <section class="pw-runtime-story" data-pw-story aria-live="polite">
+            <p><span class="pw-system">SYSTEM</span> Bitterroot simulation mounted successfully.</p>
+            <p>The fire in Brackenjaw burns low. Rain taps softly against the roof while the settlement wakes outside.</p>
+          </section>
+          <aside class="pw-runtime-panel">
+            <strong>WORLD STATE</strong>
+            <span>LOCATION · BRACKENJAW</span>
+            <span>TIME · 08:00</span>
+            <span>WEATHER · LIGHT RAIN</span>
+          </aside>
+        </div>
+        <form class="pw-runtime-prompt" data-pw-prompt autocomplete="off">
+          <label for="pw-runtime-input">&gt;</label>
+          <input id="pw-runtime-input" data-pw-input type="text" placeholder="Enter simulation input..." aria-label="Simulation input" />
+          <button type="submit">SEND</button>
+        </form>
+      </section>
+    `
+    const prompt = diskStage.querySelector<HTMLFormElement>('[data-pw-prompt]')!
+    const input = diskStage.querySelector<HTMLInputElement>('[data-pw-input]')!
+    const story = diskStage.querySelector<HTMLElement>('[data-pw-story]')!
+    prompt.addEventListener('submit', (event) => {
+      event.preventDefault()
+      const value = input.value.trim()
+      if (!value) return
+      const player = document.createElement('p')
+      player.className = 'pw-player-line'
+      player.textContent = `> ${value}`
+      story.append(player)
+      input.value = ''
+      audio.beep(980, 0.035)
+      window.setTimeout(() => {
+        const response = document.createElement('p')
+        response.textContent = 'Simulation input accepted. Runtime bridge is operating in tech-demo mode.'
+        story.append(response)
+        story.scrollTop = story.scrollHeight
+      }, 420)
+      story.scrollTop = story.scrollHeight
+    })
+    input.focus()
+  }
+
   const showDisk = (kind: 'world' | 'persona') => {
     const world = kind === 'world'
     diskStage.innerHTML = `
@@ -123,7 +180,9 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
     await append("PERSONA: SKYLER · PIP'S FRIEND", 100)
     await append('LOCATION: BRACKENJAW', 100)
     await append('', 120)
-    await append('SIMULATION ACTIVE_', 120)
+    await append('SIMULATION ACTIVE_', 650)
+    await wait(650)
+    showRuntimeDemo()
   }
 
   const boot = async () => {
