@@ -207,7 +207,9 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
 
   function turnInhabitantsFor(value: string): RuntimeInhabitant[] {
     const addressed = directlyAddressedInhabitants(value, inhabitants)
-    return addressed.length ? addressed : inhabitants
+    if (!addressed.length) return inhabitants
+    const addressedIds = new Set(addressed.map((inhabitant) => inhabitant.id))
+    return [...addressed, ...inhabitants.filter((inhabitant) => !addressedIds.has(inhabitant.id))]
   }
 
   function saveSessionHistory(history: WorldRuntimeMessage[]): void {
@@ -251,7 +253,9 @@ export async function renderWorldRuntime(root: HTMLElement, context: AppContext,
 
   async function impersonate(direction = '', baseSession: WorldRuntimeSession = session): Promise<string> {
     const nai = getNovelAiRuntimeSettings()
-    const prompt = compileWorldImpersonationPrompt({ world: activeWorld, session: baseSession, persona, inhabitants, direction })
+    const personaId = persona?.id || DEFAULT_PERSONA_ID
+    const relationships = Object.fromEntries(inhabitants.map((inhabitant) => [inhabitant.id, relationshipRepository.get(inhabitant.id, personaId)]))
+    const prompt = compileWorldImpersonationPrompt({ world: activeWorld, session: baseSession, persona, inhabitants, relationships, direction })
     const raw = await provider.generateRaw({
       prompt,
       model: nai.model,

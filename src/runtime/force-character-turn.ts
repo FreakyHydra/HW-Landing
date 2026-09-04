@@ -124,25 +124,25 @@ export async function forceCharacterTurn(name = ''): Promise<void> {
     return
   }
   const inferredTarget = explicitTarget ?? contextTarget(inhabitants, session.history)
-  const turnCandidates = inferredTarget ? [inferredTarget] : inhabitants
 
   const persona = session.personaId ? personas.find((item) => item.id === session.personaId) : personas[0]
   const personaId = persona?.id || DEFAULT_PERSONA_ID
   const relationshipRepository = new LocalRelationshipRepository()
-  const relationships = Object.fromEntries(turnCandidates.map((item) => [item.id, relationshipRepository.get(item.id, personaId)]))
+  const relationships = Object.fromEntries(inhabitants.map((item) => [item.id, relationshipRepository.get(item.id, personaId)]))
   const lastPlayer = [...session.history].reverse().find((message) => message.sender === 'player')
   const playerTurn = lastPlayer?.text || 'Continue from the established scene without adding a new player action.'
-  const basePrompt = compileWorldRuntimePrompt({
+  const generationDirective = inferredTarget
+    ? `${inferredTarget.name} is the character whose turn is contextually due. Continue naturally from the existing scene. Do not require another player action first.`
+    : 'Choose whichever currently relevant character is most naturally due to respond next from the recent context. Continue the scene without requiring another player action first. Do not explain the selection.'
+  const prompt = compileWorldRuntimePrompt({
     world,
     session,
     playerTurn,
-    inhabitants: turnCandidates,
+    inhabitants,
     persona,
     relationships,
+    generationDirective,
   })
-  const prompt = inferredTarget
-    ? `${basePrompt}\n\nNEXT CHARACTER TURN\n${inferredTarget.name} is the character whose turn is contextually due. Continue naturally from the existing scene. Do not require another player action first.`
-    : `${basePrompt}\n\nNEXT CHARACTER TURN\nChoose whichever currently relevant character is most naturally due to respond next from the recent context. Continue the scene without requiring another player action first. Do not explain the selection.`
 
   const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')
   const impersonate = form.querySelector<HTMLButtonElement>('.world-runtime-impersonate')

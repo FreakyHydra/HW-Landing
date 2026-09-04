@@ -1,6 +1,8 @@
 import type { CharacterRecord } from '../domain/character-record.ts'
 import type { Persona } from '../domain/persona.ts'
 import type { FamilyPerson, WorldLocation, WorldRecord, WorldSociety } from '../domain/world.ts'
+import { worldTimeWeatherOf } from '../domain/world.ts'
+import { resolveCharacterWorldContext } from '../domain/world-context.ts'
 import type { RelationshipRecord } from './relationship-v2.ts'
 import { relationshipTier } from './relationship-v2.ts'
 
@@ -103,17 +105,60 @@ function locationTrail(world: WorldRecord, currentLocationId?: string): WorldLoc
   return ids.map((id) => map.get(id)).filter((item): item is WorldLocation => Boolean(item)).reverse()
 }
 
-function compactCharacter(inhabitant: RuntimeInhabitant): string {
+function authoredEntries(values: Record<string, string>, empty: string): string {
+  const entries = Object.entries(values).filter(([, value]) => value.trim())
+  return entries.length ? entries.map(([key, value]) => `${key}: ${value}`).join('\n') : empty
+}
+
+function familyCanon(world: WorldRecord, inhabitant: RuntimeInhabitant): string {
+  const family = inhabitant.familyId
+    ? world.families.find((item) => item.id === inhabitant.familyId)
+    : world.families.find((item) => item.people.some((person) => person.characterId === inhabitant.id))
+  if (!family) return ''
+  const person = family.people.find((item) => item.characterId === inhabitant.id || item.id === inhabitant.id || item.name === inhabitant.name)
+  if (!person) return `Family: ${family.name}. ${family.description}`
+  const names = new Map(family.people.map((item) => [item.id, item.name]))
+  const relationships = family.relationships.filter((item) => item.fromPersonId === person.id || item.toPersonId === person.id).map((item) => {
+    const otherId = item.fromPersonId === person.id ? item.toPersonId : item.fromPersonId
+    return `${item.kind} with ${names.get(otherId) || otherId}${item.notes ? `: ${item.notes}` : ''}`
+  })
+  return [`Family: ${family.name}. ${family.description}`, relationships.length && `Family relationships: ${relationships.join(' | ')}`].filter(Boolean).join('\n')
+}
+
+function characterBookCanon(record: CharacterRecord): string {
+  const entries = record.cardV2.data.character_book?.entries
+    .filter((entry) => entry.enabled && entry.content.trim())
+    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || a.insertion_order - b.insertion_order)
+  if (!entries?.length) return ''
+  return entries.map((entry) => `${entry.name || entry.comment || entry.keys.join(', ') || 'Character-book entry'}: ${entry.content}`).join('\n')
+}
+
+function compactCharacter(world: WorldRecord, inhabitant: RuntimeInhabitant): string {
   const record = inhabitant.character
-  if (!record) return `${inhabitant.name}: ${inhabitant.description}`
+  if (!record) return [`Name: ${inhabitant.name}`, `Identity and established facts: ${inhabitant.description}`, familyCanon(world, inhabitant)].filter(Boolean).join('\n')
   const data = record.cardV2.data
+  const context = resolveCharacterWorldContext(record, world)
+  const extensions = Object.keys(data.extensions).length ? JSON.stringify(data.extensions, null, 2) : ''
   return [
-    `${inhabitant.name}: ${data.description || inhabitant.description}`,
+    `Name: ${inhabitant.name}`,
+    `Identity and physical facts: ${data.description || inhabitant.description}`,
     data.personality && `Personality: ${data.personality}`,
-    data.scenario && `Current framing: ${data.scenario}`,
-    record.memories.length && `Personal memory: ${record.memories.slice(-5).join(' | ')}`,
-    record.developedCanon.length && `Developed canon: ${record.developedCanon.slice(-5).join(' | ')}`,
-    data.system_prompt && `Character instruction: ${data.system_prompt}`,
+    context.species && `Species: ${context.species.name}. ${context.species.description}`,
+    context.homeLocation && `Home: ${context.homeLocation.name}. ${context.homeLocation.description}`,
+    context.factions.length && `Faction ties: ${context.factions.map((faction) => `${faction.name}: ${faction.description}`).join(' | ')}`,
+    familyCanon(world, inhabitant),
+    data.scenario && `Authored scenario: ${data.scenario}`,
+    record.developedCanon.length && `Developed canon: ${record.developedCanon.join(' | ')}`,
+    record.memories.length && `Personal memory: ${record.memories.join(' | ')}`,
+    context.relevantMemories.length && `Known world memory: ${context.relevantMemories.map((memory) => `${memory.title}: ${memory.description}`).join(' | ')}`,
+    Object.keys(record.relationships).length && `Authored relationships:\n${authoredEntries(record.relationships, '')}`,
+    Object.keys(record.sceneState).length && `Current character scene state:\n${authoredEntries(record.sceneState, '')}`,
+    data.mes_example && `Speech and behavior examples: ${data.mes_example}`,
+    data.first_mes && `Authored greeting example: ${data.first_mes}`,
+    data.system_prompt && `Authored character instruction: ${data.system_prompt}`,
+    data.post_history_instructions && `Authored post-history instruction: ${data.post_history_instructions}`,
+    characterBookCanon(record) && `Authored character-book canon:\n${characterBookCanon(record)}`,
+    extensions && `Authored card extensions:\n${extensions}`,
   ].filter(Boolean).join('\n')
 }
 
@@ -129,7 +174,7 @@ function relationshipText(inhabitant: RuntimeInhabitant, relationship?: Relation
 }
 
 function continuityText(session: WorldRuntimeSession): string {
-  return session.history.slice(-18).map((message) => {
+  return session.history.slice(-24).map((message) => {
     if (message.sender === 'player') return `Recent player input\n${message.text}`
     if (message.sender === 'world') return `Resulting world prose\n${message.text}`
     return ''
@@ -149,6 +194,143 @@ function sandboxProsePolicy(): string {
 - Characters remain autonomous. They may hesitate, disagree, conceal information, misunderstand, make mistakes, refuse, or pursue their own goals.`
 }
 
+function societyCanon(society: WorldSociety): string {
+  return [
+    `${society.name} (${society.type}, ${society.canonStatus}): ${society.description}`,
+    society.origin && `Origin: ${society.origin}`,
+    society.territoryNotes && `Territory: ${society.territoryNotes}`,
+    society.seasonalMovement && `Seasonal movement: ${society.seasonalMovement}`,
+    `Lifestyle: ${society.lifestyle}`,
+    society.kinshipBasis && `Kinship: ${society.kinshipBasis}`,
+    society.membershipRules && `Membership: ${society.membershipRules}`,
+    society.leadershipStructure && `Leadership: ${society.leadershipStructure}`,
+    society.decisionMaking && `Decision-making: ${society.decisionMaking}`,
+    society.customs && `Customs: ${society.customs}`,
+    society.beliefs && `Beliefs: ${society.beliefs}`,
+    society.languageDialect && `Language / dialect: ${society.languageDialect}`,
+    society.livelihood && `Livelihood: ${society.livelihood}`,
+    society.currentStatus && `Current status: ${society.currentStatus}`,
+  ].filter(Boolean).join('\n')
+}
+
+function runtimeTimeText(world: WorldRecord, session: WorldRuntimeSession): string {
+  const settings = worldTimeWeatherOf(world)
+  const start = `Starting state: day ${settings.startingDay}, hour ${settings.startingHour} of a ${settings.hoursPerDay}-hour day.`
+  let current = 'The exact current clock time is not established.'
+  if (settings.mode === 'tick') {
+    const turns = session.history.filter((message) => message.sender === 'player').length
+    const minutesPerDay = settings.hoursPerDay * 60
+    const totalMinutes = settings.startingHour * 60 + turns * settings.minutesPerInput
+    const day = settings.startingDay + Math.floor(totalMinutes / minutesPerDay)
+    const withinDay = totalMinutes % minutesPerDay
+    current = `Current runtime clock: day ${day}, ${String(Math.floor(withinDay / 60)).padStart(2, '0')}:${String(withinDay % 60).padStart(2, '0')} after ${turns} player turn${turns === 1 ? '' : 's'}.`
+  }
+  const seasonLength = settings.seasons.reduce((sum, season) => sum + season.lengthDays, 0)
+  let season = settings.seasons[0]
+  if (settings.seasonsEnabled && seasonLength > 0 && settings.mode === 'tick') {
+    const turns = session.history.filter((message) => message.sender === 'player').length
+    const elapsedDays = Math.floor((settings.startingHour * 60 + turns * settings.minutesPerInput) / (settings.hoursPerDay * 60))
+    let seasonDay = (settings.startingDay - 1 + elapsedDays) % seasonLength
+    season = settings.seasons.find((item) => {
+      if (seasonDay < item.lengthDays) return true
+      seasonDay -= item.lengthDays
+      return false
+    }) || season
+  }
+  return [
+    start,
+    current,
+    settings.climate && `Climate: ${settings.climate}`,
+    settings.weatherPrompt && `Authored weather rule: ${settings.weatherPrompt}`,
+    settings.seasonsEnabled && season && `Current season: ${season.name}${season.weatherPrompt ? `. Authored season rule: ${season.weatherPrompt}` : ''}`,
+  ].filter(Boolean).join('\n')
+}
+
+export type WorldAuthorityContextInput = {
+  world: WorldRecord
+  session: WorldRuntimeSession
+  currentTurn: string
+  currentTurnHeading: string
+  inhabitants: RuntimeInhabitant[]
+  persona?: Persona
+  relationships?: Record<string, RelationshipRecord | undefined>
+}
+
+export function compileWorldAuthorityContext(input: WorldAuthorityContextInput): string {
+  const { world, session, currentTurn, currentTurnHeading, inhabitants, persona } = input
+  const trail = locationTrail(world, session.currentLocationId)
+  const current = trail.at(-1)
+  const societies = relevantSocieties(world, session.currentLocationId)
+  const factionIds = new Set([...societies.flatMap((society) => society.factionIds), ...inhabitants.flatMap((inhabitant) => inhabitant.character?.factionIds ?? [])])
+  const factions = world.factions.filter((faction) => factionIds.has(faction.id))
+  const familyIds = new Set(societies.flatMap((society) => society.familyIds))
+  const characterIds = new Set(inhabitants.map((inhabitant) => inhabitant.id))
+  const relevantMemories = world.memories.filter((memory) =>
+    memory.visibility === 'common'
+    || memory.locationIds.some((id) => trail.some((location) => location.id === id))
+    || memory.familyIds.some((id) => familyIds.has(id))
+    || memory.factionIds.some((id) => factionIds.has(id))
+    || memory.affectedCharacterIds.some((id) => characterIds.has(id)),
+  )
+  const latestWorld = [...session.history].reverse().find((message) => message.sender === 'world')
+  const history = continuityText(session)
+
+  return `CURRENT TURN - HIGHEST AUTHORITY
+${currentTurnHeading}
+${currentTurn || 'No new action was supplied. Continue only from the established scene.'}
+
+AUTHORITY ORDER
+Resolve conflicts in this order: explicit current user instruction; current scene state and established continuity; user-authored world rules; established world canon; current location facts; character sheets; persona sheet; authored relationship and runtime state; recent generated continuity; general improvisation.
+Authored facts and rules are facts of the current fiction. Do not contradict, weaken, silently rewrite, or replace them. Recent generated prose cannot override authored canon. Improvise only where these sources leave a gap, and keep unknown information unknown when an unsupported invention would conflict with or overwrite canon.
+
+CURRENT SCENE STATE
+Runtime location anchor: ${current ? `${current.name} (${current.kind})` : 'No exact location has been established.'}
+Location path: ${trail.map((location) => location.name).join(' > ') || 'Unspecified'}
+${runtimeTimeText(world, session)}
+Immediate prior world state: ${latestWorld?.text || 'No prior world response.'}
+Who is present, physical positions, unfinished actions, unanswered questions, relevant objects, and emotional context remain exactly as established in recent continuity and character scene state. Locally relevant inhabitants are not automatically present; the list is not proof that everyone listed is in the scene. Do not reset or relocate the scene without support.
+
+WORLD RULES - USER AUTHORED AND BINDING IN THIS FICTION
+Technology: ${world.rules.technology || 'Not specified.'}
+Magic / physics: ${world.rules.magicPhysics || 'Not specified.'}
+Society: ${world.rules.society || 'Not specified.'}
+Constraints:\n${world.rules.constraints.length ? world.rules.constraints.map((rule) => `- ${rule}`).join('\n') : 'No additional constraints supplied.'}
+If an authored world rule differs from ordinary real-world expectations or generic assumptions, the authored world rule wins inside this fiction. Do not import moral, legal, romantic, social, cultural, or behavioral assumptions that are absent from the supplied world data.
+
+WORLD CANON
+Name: ${world.identity.name}
+Genre: ${world.identity.genre}
+Tone: ${world.identity.tone}
+Description: ${world.identity.description}
+History: ${world.lore.history}
+Cultures: ${world.lore.cultures}
+Customs: ${world.lore.customs}
+Important facts:\n${world.lore.importantFacts.length ? world.lore.importantFacts.map((fact) => `- ${fact}`).join('\n') : 'None supplied.'}
+Species:\n${world.species.length ? world.species.map((species) => `${species.name}: ${species.description}`).join('\n') : 'None supplied.'}
+Relevant peoples and societies:\n${societies.length ? societies.map(societyCanon).join('\n\n') : 'No specific society is resolved for this location.'}
+Relevant factions:\n${factions.length ? factions.map((faction) => `${faction.name}: ${faction.description}`).join('\n') : 'No specific faction is resolved for this location.'}
+Relevant established world memory:\n${relevantMemories.length ? relevantMemories.map((memory) => `${memory.title} (${memory.occurredAt}): ${memory.description}${memory.persistentEffects.length ? ` Persistent effects: ${memory.persistentEffects.join(' | ')}` : ''}`).join('\n') : 'No additional world memory is relevant.'}
+
+CURRENT LOCATION - ESTABLISHED FACTS
+${trail.length ? trail.map((location) => `${location.name} (${location.kind}): ${location.description}`).join('\n') : 'No exact location has been established yet.'}
+Treat the runtime location as an anchor. If recent continuity explicitly established a move to another authored location, that newer explicit continuity wins; a mere mention of another place does not move the scene.
+
+RELEVANT CHARACTERS - CHARACTER SHEETS ARE AUTHORITATIVE
+${inhabitants.length ? inhabitants.map((inhabitant) => compactCharacter(world, inhabitant)).join('\n\n') : 'No named character is required to be present.'}
+Preserve each character's identity, personality, speech, knowledge, relationships, history, species, physical traits, motivations, and established behavior. Do not replace an actual sheet with a generic archetype. A character knows only what their sheet, experience, observation, communication, memory, or reasonable in-world inference supports.
+
+PLAYER PERSONA
+${persona ? `Name: ${persona.name}\nPronouns: ${persona.pronouns}\nDescription: ${persona.description}\nAppearance: ${persona.appearance}\nPersonality: ${persona.personality}\nBackground: ${persona.background}\nNotes: ${persona.notes}` : 'No persona selected. Do not invent a player identity.'}
+
+RELATIONSHIP AND RUNTIME STATE
+${inhabitants.length ? inhabitants.map((inhabitant) => relationshipText(inhabitant, input.relationships?.[inhabitant.id])).join('\n') : 'No active character relationship state.'}
+Relationship state describes established runtime continuity. It does not authorize inventing a different relationship, motive, event, or interpretation.
+
+RECENT CONTINUITY - STRONG BUT BELOW AUTHORED CANON
+${history || 'This is the beginning of this world session.'}
+Continue directly from this history. Preserve what just happened, but when generated history conflicts with authored world, location, character, persona, or relationship facts, follow the authored facts.`
+}
+
 export function compileWorldRuntimePrompt(input: {
   world: WorldRecord
   session: WorldRuntimeSession
@@ -156,32 +338,61 @@ export function compileWorldRuntimePrompt(input: {
   inhabitants: RuntimeInhabitant[]
   persona?: Persona
   relationships?: Record<string, RelationshipRecord | undefined>
+  generationDirective?: string
 }): string {
-  const { world, session, playerTurn, inhabitants, persona } = input
-  const trail = locationTrail(world, session.currentLocationId)
-  const current = trail.at(-1)
+  const { world, session, playerTurn, inhabitants } = input
+  const allowedPlaceNames = world.locations.map((location) => location.name)
   const societies = relevantSocieties(world, session.currentLocationId)
-  const factionIds = new Set(societies.flatMap((society) => society.factionIds))
-  const factions = world.factions.filter((faction) => factionIds.has(faction.id))
-  const familyIds = new Set(societies.flatMap((society) => society.familyIds))
-  const relevantMemories = world.memories.filter((memory) =>
-    memory.visibility === 'common'
-    || memory.locationIds.some((id) => trail.some((location) => location.id === id))
-    || memory.familyIds.some((id) => familyIds.has(id))
-    || memory.factionIds.some((id) => factionIds.has(id)),
-  ).slice(-12)
-  const history = continuityText(session)
-  const allowedPlaceNames = trail.map((location) => location.name)
   const allowedProperNouns = [
     world.identity.name,
     ...allowedPlaceNames,
     ...societies.map((society) => society.name),
-    ...factions.map((faction) => faction.name),
+    ...world.factions.map((faction) => faction.name),
     ...inhabitants.map((inhabitant) => inhabitant.name),
     ...world.species.map((species) => species.name),
   ].filter(Boolean)
 
+  const authorityContext = compileWorldAuthorityContext({
+    world,
+    session,
+    currentTurn: playerTurn,
+    currentTurnHeading: 'Explicit current player input:',
+    inhabitants,
+    persona: input.persona,
+    relationships: input.relationships,
+  })
+
   return `You are the living world runtime for ${world.identity.name}. You are not a selected character and you are not an assistant inside the fiction.
+
+${authorityContext}
+
+GENERATION INSTRUCTIONS
+${input.generationDirective ? `TURN MODE\n${input.generationDirective}\n` : ''}- Continue the world as an ongoing reality. There is no mandatory scene and no mandatory primary character.
+- The inhabitant list is a list of people who could plausibly matter here. It does NOT mean they are automatically standing beside the player. Do not materialize everyone just because they are listed.
+- Multiple inhabitants may participate when the situation warrants it, but do not force everyone to speak.
+- Preserve each inhabitant's authored personality, knowledge, authority, family ties, memories, and relationship state independently.
+- The world exists even when no named inhabitant is present. Silence, ordinary activity, distance, weather, work, wildlife, and environment are valid responses.
+- Do not invent new named NPCs, families, settlements, rivers, landmarks, factions, roads, clans, passes, mountains, or geographic features.
+- Do not invent specific geography, buildings, occupations, family facts, local history, trade routes, landmarks, destinations, equipment, scars, clothing details, insignia, or physical traits merely to enrich the prose unless they are supplied by canon.
+- Unnamed background people may exist when ordinary life requires them, but keep them generic until canon gives them a name.
+- Never invent modern technology that contradicts the world rules.
+- Treat supplied canon as fact. Do not overwrite it merely to make a scene easier.
+
+GROUNDING
+Authored place names available to the fiction: ${allowedPlaceNames.join(', ') || 'none supplied'}.
+Other authored canon names: ${allowedProperNouns.filter((name) => !allowedPlaceNames.includes(name)).join(', ') || 'none supplied'}.
+If a name is not supplied by authored data or established verbatim in continuity, do not create it.
+When uncertain, stay generic instead of inventing a name.
+
+AMBIGUOUS INTENT AND NOVEL EXPERIENCES
+- Do not assign strong intent to an ambiguous action merely from the action itself.
+- Do not automatically classify unusual behavior as malicious, predatory, sexual, romantic, hostile, manipulative, or intentionally disrespectful unless character knowledge, explicit user input, established canon, or prior context supports that interpretation.
+- When behavior is unusual or out of character, preserve uncertainty, check the actual character sheet and context, and allow confusion or investigation. Consider sensory, environmental, instinctive, magical, biological, emotional, or situational causes only when the world or scene supports them.
+- Do not invent a cause absent from canon, and do not turn an unexplained event into a moral judgment about the character.
+- An accidental or involuntary action remains accidental or involuntary unless later evidence establishes otherwise.
+- For unfamiliar experiences, derive reactions from the actual character sheet, authored knowledge and maturity, culture, species, relationships, world rules, and current situation. Do not substitute a generic modern social-response script.
+
+${sandboxProsePolicy()}
 
 OUTPUT CONTRACT
 Return only finished roleplay prose suitable for direct display to the player.
@@ -193,69 +404,7 @@ Treat the player's latest input as already completed. Do not restate it, paraphr
 Never begin by saying the player moves, walks, looks, feels, notices, decides, reaches, follows, turns, approaches, or otherwise performs the action they just supplied.
 Never decide the player's dialogue, thoughts, feelings, intentions, reactions, perceptions, or future actions.
 Do not output hidden reasoning, analysis, think tags, instructions, generation notes, control text, or commentary about the generation.
-
-${sandboxProsePolicy()}
-
-CORE RUNTIME RULES
-- Continue the world as an ongoing reality. There is no mandatory scene and no mandatory primary character.
-- The inhabitant list is a list of people who could plausibly matter here. It does NOT mean they are automatically standing beside the player. Do not materialize everyone just because they are listed.
-- A short casual player line should normally receive a short natural answer. Default to 1-3 paragraphs and roughly 60-180 words unless the action genuinely needs more.
-- Multiple inhabitants may participate when the situation warrants it, but do not force everyone to speak.
-- Preserve each inhabitant's personality, knowledge, authority, family ties, boundaries, memories, and relationship state independently.
-- The world exists even when no named inhabitant is present. Silence, ordinary activity, distance, weather, work, wildlife, and environment are valid responses.
-- Do not invent new named NPCs, families, settlements, rivers, landmarks, factions, roads, clans, passes, mountains, or geographic features.
-- Do not invent specific geography, buildings, occupations, family facts, local history, trade routes, landmarks, destinations, equipment, scars, clothing details, insignia, or physical traits merely to enrich the prose unless they are supplied by canon.
-- Unnamed background people may exist when ordinary life requires them, but keep them generic until canon gives them a name.
-- Never invent modern technology that contradicts the world rules.
-- Treat supplied canon as fact. Do not overwrite it merely to make a scene easier.
-
-GROUNDING
-The only named places allowed in this turn are: ${allowedPlaceNames.join(', ') || 'none supplied'}.
-Other allowed canon names: ${allowedProperNouns.filter((name) => !allowedPlaceNames.includes(name)).join(', ') || 'none supplied'}.
-If a name or place is not listed above or established verbatim in recent continuity, do not create it.
-When uncertain, stay generic instead of inventing a name.
-
-WORLD ROOT
-Name: ${world.identity.name}
-Genre: ${world.identity.genre}
-Tone: ${world.identity.tone}
-Description: ${world.identity.description}
-Technology: ${world.rules.technology}
-Magic / physics: ${world.rules.magicPhysics}
-Society: ${world.rules.society}
-Constraints: ${world.rules.constraints.join(' | ')}
-History: ${world.lore.history}
-Cultures: ${world.lore.cultures}
-Customs: ${world.lore.customs}
-Important facts: ${world.lore.importantFacts.join(' | ')}
-
-CURRENT PLACE
-${current ? `${current.name} (${current.kind}): ${current.description}` : 'No exact location has been established yet.'}
-Location path: ${trail.map((location) => location.name).join(' > ') || 'Unspecified'}
-
-RELEVANT PEOPLES AND POWER
-${societies.length ? societies.map((society) => `${society.name} (${society.type}): ${society.description} Status: ${society.currentStatus}`).join('\n') : 'No specific society is currently resolved.'}
-${factions.length ? `Relevant factions:\n${factions.map((faction) => `${faction.name}: ${faction.description}`).join('\n')}` : ''}
-
-POTENTIALLY RELEVANT INHABITANTS, NOT AUTOMATICALLY PRESENT
-${inhabitants.length ? inhabitants.map(compactCharacter).join('\n\n') : 'No named inhabitant is required to be present. Let the world itself carry the moment until someone plausibly appears.'}
-
-RELATIONSHIP V2 STATE
-${inhabitants.length ? inhabitants.map((inhabitant) => relationshipText(inhabitant, input.relationships?.[inhabitant.id])).join('\n') : 'No active character relationship state.'}
-
-PLAYER PERSONA
-${persona ? `Name: ${persona.name}\nPronouns: ${persona.pronouns}\nDescription: ${persona.description}\nAppearance: ${persona.appearance}\nPersonality: ${persona.personality}\nBackground: ${persona.background}\nNotes: ${persona.notes}` : 'No persona selected. Do not invent a player identity.'}
-
-RELEVANT WORLD MEMORY
-${relevantMemories.length ? relevantMemories.map((memory) => `${memory.title} (${memory.occurredAt}): ${memory.description}${memory.persistentEffects.length ? ` Effects: ${memory.persistentEffects.join(' | ')}` : ''}`).join('\n') : 'No additional world memory is relevant.'}
-
-RECENT CONTINUITY
-${history || 'This is the beginning of this world session.'}
-
-CURRENT PLAYER INPUT
-${playerTurn}
-
-The player's input above has already happened. Begin with what the world or its inhabitants do next. Continue naturally as finished prose only. No labels. No brackets. No metadata. No unsupported names or details.`
+Begin with what the world or its inhabitants do next. Continue naturally as finished prose only. No labels. No brackets. No metadata. No unsupported names or details.`
 }
 
 export class LocalWorldRuntimeSessionRepository {
