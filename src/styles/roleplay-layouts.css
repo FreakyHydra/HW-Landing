@@ -1,0 +1,56 @@
+.roleplay-layout-selector{grid-template-columns:repeat(2,minmax(0,1fr))}
+.roleplay-layout-preview{height:88px;display:grid;grid-template-columns:20% 1fr 24%;gap:5px;padding:8px;border:1px solid var(--border-soft);border-radius:8px;background:linear-gradient(180deg,rgba(225,170,119,.05),rgba(0,0,0,.14))}
+.roleplay-layout-preview::before,.roleplay-layout-preview::after,.roleplay-layout-preview i,.roleplay-layout-preview b{content:"";display:block;border-radius:4px;background:rgba(225,170,119,.12)}
+.roleplay-layout-preview.current{display:block;position:relative}
+.roleplay-layout-preview.current::before{position:absolute;inset:12px 18%;border:1px solid rgba(225,170,119,.18);background:rgba(0,0,0,.16)}
+.roleplay-layout-preview.current::after{position:absolute;left:28%;right:28%;bottom:14px;height:9px;background:rgba(225,170,119,.16)}
+.roleplay-layout-preview.framed i{background:rgba(154,159,122,.14)}
+.roleplay-layout-preview.framed b{background:rgba(201,135,82,.18)}
+.roleplay-layout-note{margin:12px 0 0;color:var(--text-muted);font-size:.78rem;line-height:1.5}
+
+.world-runtime.framed-hud-active{--framed-left:280px;--framed-right:260px;--framed-gap:14px;display:grid;grid-template-columns:var(--framed-left) minmax(0,1fr) var(--framed-right);grid-template-rows:72px minmax(0,1fr);gap:var(--framed-gap);padding:18px;background:radial-gradient(circle at 50% 35%,rgba(105,58,31,.12),transparent 34rem),#050505}
+.world-runtime.framed-hud-active .world-runtime-identity{opacity:.28}
+.world-runtime.framed-hud-active .framed-rp-header{grid-column:1/-1;grid-row:1;position:relative;z-index:5;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;padding:0 18px;border:1px solid rgba(219,153,102,.22);border-radius:12px;background:linear-gradient(180deg,rgba(18,15,12,.96),rgba(8,7,6,.9));box-shadow:0 16px 48px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.025)}
+.framed-rp-brand{display:flex;align-items:center;gap:10px;color:rgba(235,211,187,.85);font:600 .78rem/1.1 Georgia,"Times New Roman",serif;letter-spacing:.11em;text-transform:uppercase}
+.framed-rp-brand img{width:34px;height:34px;object-fit:contain;opacity:.88}
+.framed-rp-scene{text-align:center;min-width:0}
+.framed-rp-scene strong{display:block;color:rgba(244,238,232,.95);font:600 1.03rem/1.2 Georgia,"Times New Roman",serif;letter-spacing:.035em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.framed-rp-scene span{display:block;margin-top:4px;color:rgba(201,135,82,.72);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase}
+.framed-rp-header-actions{justify-self:end;color:rgba(201,135,82,.55);font-size:.72rem;letter-spacing:.08em}
+
+.world-runtime.framed-hud-active .world-runtime-rs{grid-column:1;grid-row:2;position:relative;inset:auto;transform:none;width:auto;max-height:none;overflow:auto;margin:0;padding:14px;border:1px solid rgba(219,153,102,.18);border-radius:12px;background:linear-gradient(180deg,rgba(14,12,10,.94),rgba(7,6,5,.86));box-shadow:0 18px 50px rgba(0,0,0,.26)}
+.world-runtime.framed-hud-active .world-runtime-rs[hidden]{display:block;visibility:hidden}
+
+.world-runtime.framed-hud-active .framed-rp-center{grid-column:2;grid-row:2;position:relative;z-index:3;min-width:0;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;border:1px solid rgba(219,153,102,.22);border-radius:14px;background:linear-gradient(180deg,rgba(11,9,8,.88),rgba(5,5,5,.92));box-shadow:0 24px 70px rgba(0,0,0,.36),inset 0 0 0 1px rgba(255,255,255,.018);overflow:hidden}
+.world-runtime.framed-hud-active .world-runtime-story{grid-row:1;position:relative;z-index:2;inset:auto;top:auto;bottom:auto;left:auto;width:auto;transform:none;min-height:0;overflow-y:auto;padding:28px clamp(22px,4vw,58px) 42px;mask-image:none}
+.world-runtime.framed-hud-active .world-runtime-message{max-width:820px;margin-bottom:24px}
+.world-runtime.framed-hud-active .world-runtime-prompt{grid-row:2;position:relative;z-index:4;left:auto;bottom:auto;width:auto;min-height:58px;transform:none;margin:0 16px 16px;border-radius:12px;background:rgba(8,7,6,.96)}
+
+.world-runtime.framed-hud-active .framed-world-hud{grid-column:3;grid-row:2;position:relative;z-index:4;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.framed-world-card{padding:14px 15px;border:1px solid rgba(219,153,102,.18);border-radius:11px;background:linear-gradient(180deg,rgba(17,14,11,.94),rgba(8,7,6,.9));box-shadow:0 12px 34px rgba(0,0,0,.2);overflow:hidden}
+.framed-world-card header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;color:rgba(201,135,82,.72);font-size:.62rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.framed-world-card header i{font-style:normal;font-size:.92rem;opacity:.8}
+.framed-world-card .hud-primary{display:block;color:rgba(244,238,232,.96);font:600 1rem/1.25 Georgia,"Times New Roman",serif}
+.framed-world-card.time .hud-primary{font:500 2.05rem/1 Georgia,"Times New Roman",serif;letter-spacing:.04em}
+.framed-world-card .hud-secondary{display:block;margin-top:5px;color:rgba(201,135,82,.72);font-size:.72rem;line-height:1.35}
+.framed-world-card .hud-tertiary{display:block;margin-top:5px;color:rgba(214,205,194,.48);font-size:.67rem;line-height:1.35}
+.framed-world-card.travel[hidden]{display:none}
+.framed-travel-progress{height:5px;margin-top:11px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden}
+.framed-travel-progress b{display:block;height:100%;width:0;background:linear-gradient(90deg,rgba(169,98,53,.9),rgba(225,170,119,.9))}
+
+@media (min-width:1024px) and (max-width:1359px) and (orientation:landscape){
+  .world-runtime.framed-hud-active{--framed-left:210px;--framed-right:215px;--framed-gap:10px;padding:10px;grid-template-rows:60px minmax(0,1fr)}
+  .world-runtime.framed-hud-active .framed-rp-header{padding:0 12px}
+  .world-runtime.framed-hud-active .world-runtime-rs{padding:10px}
+  .world-runtime.framed-hud-active .world-runtime-story{padding:22px 26px 34px}
+  .framed-world-card{padding:11px 12px}
+  .framed-rp-brand span{display:none}
+}
+
+@media (max-width:1023px),(orientation:portrait) and (max-width:1359px){
+  .world-runtime.framed-hud-active{display:block;padding:0}
+  .world-runtime.framed-hud-active .framed-rp-header,.world-runtime.framed-hud-active .framed-world-hud,.world-runtime.framed-hud-active .framed-rp-center{display:contents}
+  .world-runtime.framed-hud-active .world-runtime-rs{display:none!important}
+  .world-runtime.framed-hud-active .world-runtime-story{position:absolute;top:18px;bottom:94px;left:50%;width:calc(100vw - 18px);transform:translateX(-50%);padding:18px 7px 80px}
+  .world-runtime.framed-hud-active .world-runtime-prompt{position:absolute;left:50%;bottom:max(12px,env(safe-area-inset-bottom));width:calc(100vw - 20px);transform:translateX(-50%);margin:0}
+}
