@@ -4,45 +4,20 @@ export type UiRefs = {
   field: HTMLCanvasElement
   shatter: HTMLCanvasElement
   aura: HTMLElement
-  gate: HTMLElement
-  gateEyebrow: HTMLElement
-  gateTitle: HTMLElement
-  gateMessage: HTMLElement
-  gateAction: HTMLAnchorElement
-  gateNote: HTMLElement
   world: HTMLElement
-  sigil: HTMLAnchorElement
-  sigilImage: HTMLImageElement
   identity: HTMLElement
   projectGrid: HTMLElement
 }
 
 export function mountUi(): UiRefs {
   const app = document.querySelector<HTMLDivElement>('#app')!
-  document.body.classList.add('gate-locked')
+  document.body.classList.remove('gate-locked')
+  document.body.classList.add('gate-open')
+
   app.innerHTML = `
     <canvas id="field" aria-hidden="true"></canvas>
     <canvas id="shatter" aria-hidden="true"></canvas>
     <div class="cursor-aura" aria-hidden="true"></div>
-
-    <main class="gate" id="gate">
-      <section class="sigil-wrap" aria-labelledby="gate-title">
-        <div class="gate-horizon" aria-hidden="true"></div>
-        <div class="orbit orbit-a" aria-hidden="true"></div>
-        <div class="orbit orbit-b" aria-hidden="true"></div>
-        <div class="orbit-marks" aria-hidden="true"></div>
-        <a class="sigil" id="sigil" href="/auth/discord" aria-label="Prove your worth with Discord">
-          <img id="sigil-image" src="/hw-logo.png" alt="The Howling Whispers wolf and moon emblem" />
-        </a>
-        <div class="gate-copy">
-          <p class="eyebrow" id="gate-eyebrow">THE HOWLING WHISPERS</p>
-          <h1 id="gate-title">Prove Yourself Worthy</h1>
-          <p id="gate-message">The gate opens through Discord. Your seal decides how deep into the worlds you may travel.</p>
-          <a class="discord-button" id="gate-action" href="/auth/discord">PROVE YOUR WORTH</a>
-          <span class="gate-note" id="gate-note">Discord identifies your access seal. Nothing more.</span>
-        </div>
-      </section>
-    </main>
 
     <section class="world" id="world" aria-hidden="true">
       <div class="world-sky" aria-hidden="true">
@@ -51,16 +26,16 @@ export function mountUi(): UiRefs {
         <div class="world-ring world-ring-b"></div>
       </div>
       <header class="world-header">
-        <a class="world-brand" href="#top" aria-label="The Howling Whispers worlds">
+        <a class="world-brand" href="#top" aria-label="The Howling Whispers lobby">
           <img src="/hw-logo.png" alt="" />
           <span><small>THE</small> HOWLING WHISPERS</span>
         </a>
         <div class="identity" id="identity"></div>
       </header>
       <div class="world-hero" id="top">
-        <p class="eyebrow">WORTH PROVEN</p>
-        <h2>The Worlds Beyond the Gate</h2>
-        <p>Stable realms stand in the open. Closed Alpha and Beta paths reveal themselves only to the seals that belong there.</p>
+        <p class="eyebrow">SEAL VERIFIED</p>
+        <h2>The Howling Whispers Lobby</h2>
+        <p>Choose where you want to go. Rebrand, Sandbox and the Lightyear Apart corporation area remain separate destinations behind the same authenticated gate.</p>
         <div class="access-legend" aria-label="Access levels">
           <span><i class="legend-dot stable"></i>Stable</span>
           <span><i class="legend-dot beta"></i>Closed Beta</span>
@@ -80,31 +55,10 @@ export function mountUi(): UiRefs {
     field: document.querySelector<HTMLCanvasElement>('#field')!,
     shatter: document.querySelector<HTMLCanvasElement>('#shatter')!,
     aura: document.querySelector<HTMLElement>('.cursor-aura')!,
-    gate: document.querySelector<HTMLElement>('#gate')!,
-    gateEyebrow: document.querySelector<HTMLElement>('#gate-eyebrow')!,
-    gateTitle: document.querySelector<HTMLElement>('#gate-title')!,
-    gateMessage: document.querySelector<HTMLElement>('#gate-message')!,
-    gateAction: document.querySelector<HTMLAnchorElement>('#gate-action')!,
-    gateNote: document.querySelector<HTMLElement>('#gate-note')!,
     world: document.querySelector<HTMLElement>('#world')!,
-    sigil: document.querySelector<HTMLAnchorElement>('#sigil')!,
-    sigilImage: document.querySelector<HTMLImageElement>('#sigil-image')!,
     identity: document.querySelector<HTMLElement>('#identity')!,
     projectGrid: document.querySelector<HTMLElement>('#projects')!,
   }
-}
-
-export function markGateAccepted(ui: UiRefs, session: Session) {
-  ui.gate.classList.add('gate-accepted')
-  ui.gateEyebrow.textContent = 'THE GATE RECOGNIZES YOUR SEAL'
-  ui.gateTitle.textContent = 'Worth Proven'
-  ui.gateMessage.textContent = session.user
-    ? `${session.user.username}, the paths beyond the seal are opening.`
-    : 'The paths beyond the seal are opening.'
-  ui.gateAction.textContent = 'THE GATE OPENS'
-  ui.gateAction.removeAttribute('href')
-  ui.gateAction.setAttribute('aria-disabled', 'true')
-  ui.gateNote.textContent = 'Stand ready.'
 }
 
 function hasAccess(access: Set<AccessTier>, tier: Project['access']) {
@@ -202,15 +156,4 @@ export function renderIdentity(identity: HTMLElement, session: Session) {
   leave.href = '/auth/logout'
   leave.textContent = 'LEAVE'
   identity.append(copy, leave)
-}
-
-export function showDeniedReason(note: HTMLElement) {
-  const reason = new URLSearchParams(location.search).get('denied')
-  if (reason === 'not-member') {
-    note.textContent = 'The gate recognizes Discord, but this seal does not belong to the required server.'
-    note.classList.add('warning')
-  } else if (reason === 'auth') {
-    note.textContent = 'The gate could not verify that attempt. Try again.'
-    note.classList.add('warning')
-  }
 }
