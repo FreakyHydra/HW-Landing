@@ -1,6 +1,7 @@
 import './style.css'
 import './styles/world-runtime-visuals.css'
 import './styles/roleplay-visual-settings.css'
+import './styles/roleplay-layouts.css'
 import './styles/recent-worlds.css'
 import './styles/world-command-palette.css'
 import './views/world-time-weather-editor'
@@ -12,6 +13,8 @@ import { installRoleplayLengthControls } from './runtime/roleplay-length-control
 import { installWorldCommandPalette } from './runtime/world-command-palette'
 import { installForceCharacterTurn } from './runtime/force-character-turn'
 import { installWorldMessageControls } from './runtime/world-message-controls'
+import { installRoleplayLayoutSettings } from './runtime/roleplay-layout-settings'
+import { installFramedRoleplayLayout } from './runtime/framed-roleplay-layout'
 
 const app = document.querySelector<HTMLDivElement>('#app')
 if (!app) throw new Error('Application root is missing')
@@ -21,6 +24,8 @@ installRoleplayLengthControls()
 installWorldCommandPalette()
 installForceCharacterTurn()
 installWorldMessageControls()
+installRoleplayLayoutSettings()
+installFramedRoleplayLayout()
 
 const router = new AppRouter(app, {
   characters: new LocalCharacterRepository(),
