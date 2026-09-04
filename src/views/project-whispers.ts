@@ -42,6 +42,11 @@ function createAudio(): { beep: (frequency?: number, duration?: number) => void;
 
 function looksLikeBrowserFullscreen(): boolean {
   if (document.fullscreenElement) return true
+
+  const browserChromeHidden = Math.abs(window.outerHeight - window.innerHeight) <= 24
+    && Math.abs(window.outerWidth - window.innerWidth) <= 24
+  if (browserChromeHidden) return true
+
   const heightTolerance = 96
   const widthTolerance = 32
   const heightClose = Math.abs(window.innerHeight - screen.height) <= heightTolerance
@@ -268,7 +273,12 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
 
   window.addEventListener('resize', detectFullscreenTransition)
   document.addEventListener('fullscreenchange', detectFullscreenTransition)
-  window.setTimeout(detectFullscreenTransition, 250)
+
+  if (looksLikeBrowserFullscreen()) {
+    window.setTimeout(() => { void boot() }, 80)
+  } else {
+    window.setTimeout(detectFullscreenTransition, 250)
+  }
 
   root.addEventListener('click', (event) => {
     const target = event.target as HTMLElement
