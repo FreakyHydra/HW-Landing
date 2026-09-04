@@ -13,6 +13,7 @@ function createAudio(): { beep: (frequency?: number, duration?: number) => void;
   const beep = (frequency = 740, duration = 0.08) => {
     try {
       const ctx = getContext()
+      void ctx.resume()
       const oscillator = ctx.createOscillator()
       const gain = ctx.createGain()
       oscillator.type = 'square'
@@ -76,7 +77,7 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
       <button type="button" class="pw-disk" data-pw-disk>
         <div class="pw-disk-label">
           <strong>${world ? 'WORLD DISK' : 'PERSONA DISK'}</strong>
-          <span>${world ? 'BITTERROOT' : 'SKYLER · PIP\'S FRIEND'}</span>
+          <span>${world ? 'BITTERROOT' : "SKYLER · PIP'S FRIEND"}</span>
         </div>
         <div>CLICK TO INSERT</div>
         <div class="pw-disk-slot" aria-hidden="true"></div>
@@ -144,7 +145,7 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
     await append('')
     await append('PERSONA MOUNTED', 120)
     await append('{{user}} = SKYLER', 110)
-    await append('WORLD ROLE = PIP\'S FRIEND', 110)
+    await append("WORLD ROLE = PIP'S FRIEND", 110)
     await append('PIP ........ FRIEND · 3 YEARS', 110)
     await append('RAGNA ...... KNOWN', 110)
     await append('BRACKENJAW . RESIDENT', 160)
@@ -178,13 +179,10 @@ export async function renderProjectWhispers(root: HTMLElement): Promise<void> {
     await append('THE WORLD IS LISTENING.', 120)
   }
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'F11') {
-      window.setTimeout(() => { void boot() }, 120)
-    }
+  window.onkeydown = (event) => {
+    if (event.key === 'F11') void boot()
   }
 
-  window.addEventListener('keydown', onKeyDown)
   root.addEventListener('click', (event) => {
     const target = event.target as HTMLElement
     if (target.closest('[data-pw-disk]')) {
