@@ -15,7 +15,7 @@
     "test": "node --experimental-strip-types --test tests/*.test.mjs tests/*.test.ts",
     "build": "vite build",
     "smoke": "node scripts/smoke-server.mjs",
-    "check": "npm run lint && npm run typecheck && npm test && node --check server/index.mjs && npm run build && npm run smoke",
+    "check": "npm run lint && npm run typecheck && npm test && node --check server/index.mjs && node --check server/support.mjs && npm run build && npm run smoke",
     "start": "node server/index.mjs"
   },
   "dependencies": {
