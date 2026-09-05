@@ -7,6 +7,7 @@ import { renderImageStudio } from '../views/image-studio'
 import { renderPersonas } from '../views/personas'
 import { renderPlaceholder } from '../views/placeholders'
 import { renderProjectWhispers } from '../views/project-whispers'
+import { renderSupport } from '../views/support'
 import { renderWorldEditor } from '../views/world-editor'
 import { renderWorldLibrary, renderWorldSelectionForCharacter } from '../views/world-library'
 import { renderWorldRuntime } from '../views/world-runtime'
@@ -58,6 +59,7 @@ export class AppRouter {
     else if (path === '/forge/worlds/' || path === '/forge/worlds') await renderWorldLibrary(this.root, this.context, navigate)
     else if (path === '/forge/worlds/create/' || path === '/forge/worlds/create') await renderWorldEditor(this.root, this.context, navigate)
     else if (/^\/forge\/worlds\/edit\/[^/]+\/?$/.test(path)) await renderWorldEditor(this.root, this.context, navigate, decodeURIComponent(path.split('/')[4]))
+    else if (path === '/support/' || path === '/support') await renderSupport(this.root)
     else if (path === '/experimental/project-whispers/' || path === '/experimental/project-whispers') {
       usesShell = false
       await renderProjectWhispers(this.root)

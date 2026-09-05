@@ -8,6 +8,7 @@ import {
   landingSessionFromCoda,
   sharedSessionCookieHeader,
 } from './coda-sso.mjs'
+import { createSupportRouter } from './support.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -40,6 +41,8 @@ app.get('/api/health', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   res.json({ ok: true, authReady, authSource: 'coda-sso' })
 })
+
+app.use('/api/support', createSupportRouter(root))
 
 app.post('/api/image/novelai', express.json({ limit: '2mb' }), async (req, res) => {
   res.setHeader('Cache-Control', 'no-store')

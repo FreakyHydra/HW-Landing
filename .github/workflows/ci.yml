@@ -2,9 +2,9 @@ name: HW Landing CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, rebrand-v2]
   pull_request:
-    branches: [main]
+    branches: [main, rebrand-v2]
 
 concurrency:
   group: hw-landing-${{ github.ref }}
