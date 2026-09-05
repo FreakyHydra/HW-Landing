@@ -7,7 +7,8 @@ const searchRoutes = [
   ['peoples', '/forge/worlds/?section=societies'], ['societies', '/forge/worlds/?section=societies'], ['clans', '/forge/worlds/?section=societies'], ['tribes', '/forge/worlds/?section=societies'],
   ['factions', '/forge/worlds/?section=people'], ['locations', '/forge/worlds/?section=places'], ['lore', '/forge/worlds/?section=lore'],
   ['timeline', '/forge/worlds/?section=memory'], ['world memory', '/forge/worlds/?section=memory'], ['images', '/forge/images/'],
-  ['image studio', '/forge/images/'], ['project whispers', '/experimental/project-whispers/'], ['experimental', '/experimental/project-whispers/'], ['settings', '/settings/'],
+  ['image studio', '/forge/images/'], ['support', '/support/'], ['report bug', '/support/'], ['feature request', '/support/'],
+  ['project whispers', '/experimental/project-whispers/'], ['experimental', '/experimental/project-whispers/'], ['settings', '/settings/'],
 ] as const
 
 function navLink(path: string, href: string, label: string, icon: string): string {
@@ -34,6 +35,7 @@ export function shell(path: string, content: string, title: string, eyebrow = 'T
           <div class="nav-group"><p>WORLD</p>${navLink(path, '/forge/worlds/', 'Worlds', '◎')}${navLink(path, '/forge/worlds/create/', 'Create World', '+')}${navLink(path, '/forge/worlds/', 'Recent Worlds', '◷')}</div>
           <div class="nav-group"><p>LIBRARY</p>${navLink(path, '/forge/characters/', 'Characters', '◇')}${navLink(path, '/forge/personas/', 'Personas', '◉')}${navLink(path, '/forge/worlds/?section=societies', 'Peoples & Societies', '◌')}${navLink(path, '/forge/worlds/?section=families', 'Families', '⌘')}${navLink(path, '/forge/worlds/?section=people', 'Factions', '△')}${navLink(path, '/forge/worlds/?section=places', 'Locations', '⌖')}${navLink(path, '/forge/worlds/?section=lore', 'Lore', '≡')}${navLink(path, '/forge/worlds/?section=memory', 'Timeline', '↝')}${navLink(path, '/forge/worlds/?section=memory', 'World Memory', '◫')}</div>
           <div class="nav-group"><p>TOOLS</p>${navLink(path, '/forge/images/', 'Image Studio', '▧')}${navLink(path, '/forge/characters/', 'Import / Export', '⇄')}${navLink(path, '/settings/', 'Settings', '⚙')}</div>
+          <div class="nav-group"><p>SUPPORT</p>${navLink(path, '/support/', 'Support Hub', '?')}</div>
           <div class="nav-group"><p>EXPERIMENTAL</p>${navLink(path, '/experimental/project-whispers/', 'Project Whispers', '◈')}</div>
         </nav>
         <div class="rail-footer"><p>APPEARANCE</p><div class="quick-theme" aria-label="Quick theme selection">${(['system','light','dark'] as ThemePreference[]).map((choice) => `<button type="button" data-quick-theme="${choice}" class="${theme === choice ? 'active' : ''}" aria-pressed="${theme === choice}" title="${choice} theme">${choice === 'system' ? 'S' : choice === 'light' ? '☀' : '☾'}</button>`).join('')}</div><div class="rail-status"><i class="lamp live"></i><span>LOCAL FORGE</span></div></div>
