@@ -146,8 +146,7 @@ async function syncGithub(item, isNew) {
   try {
     if (!process.env.GITHUB_SUPPORT_TOKEN) return item
     if (isNew || !item.githubIssueNumber) {
-      const labels = item.kind === 'bug' ? ['bug', `priority:${item.priority}`] : item.kind === 'feature' ? ['enhancement'] : ['feedback']
-      const issue = await githubRequest('POST', '/issues', { title: `[${item.kind === 'feature' ? 'Feature' : item.kind === 'bug' ? 'Bug' : 'Feedback'}] ${item.title}`, body: issueBody(item), labels })
+      const issue = await githubRequest('POST', '/issues', { title: `[${item.kind === 'feature' ? 'Feature' : item.kind === 'bug' ? 'Bug' : 'Feedback'}] ${item.title}`, body: issueBody(item) })
       if (issue?.number) { item.githubIssueNumber = issue.number; item.githubUrl = issue.html_url }
     } else {
       await githubRequest('POST', `/issues/${item.githubIssueNumber}/comments`, { body: `Support update: canonical report now has **${item.reportCount}** merged reports and **${item.votes}** community votes. Last updated ${item.updatedAt}.` })
