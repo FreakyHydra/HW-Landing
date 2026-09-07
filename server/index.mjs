@@ -8,6 +8,7 @@ import {
   landingSessionFromCoda,
   sharedSessionCookieHeader,
 } from './coda-sso.mjs'
+import { normalizeNovelAiImageResponse } from './novelai-image-response.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -53,8 +54,8 @@ app.post('/api/image/novelai', express.json({ limit: '2mb' }), async (req, res) 
   }
 
   const parameters = payload.parameters
-  if (!parameters || typeof parameters !== 'object' || parameters.n_samples !== 1) {
-    return res.status(400).json({ error: 'Forge currently supports one generated image per request.' })
+  if (!parameters || typeof parameters !== 'object' || parameters.n_samples !== 1 || parameters.params_version !== 3) {
+    return res.status(400).json({ error: 'Forge currently supports one V5 image per request using params_version 3.' })
   }
 
   try {
@@ -63,7 +64,7 @@ app.post('/api/image/novelai', express.json({ limit: '2mb' }), async (req, res) 
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        Accept: 'application/zip, application/octet-stream',
+        Accept: 'application/zip, application/octet-stream, image/png, image/webp',
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(120000),
@@ -75,14 +76,15 @@ app.post('/api/image/novelai', express.json({ limit: '2mb' }), async (req, res) 
       return res.status(response.status).json({ error: detail || `NovelAI ImageGen returned HTTP ${response.status}.` })
     }
 
-    const bytes = Buffer.from(await response.arrayBuffer())
-    res.status(200)
-    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/zip')
-    res.setHeader('Content-Length', String(bytes.length))
-    return res.send(bytes)
+    const upstreamBytes = Buffer.from(await response.arrayBuffer())
+    const normalized = normalizeNovelAiImageResponse(upstreamBytes, response.headers.get('content-type') || '')
+    return res.status(200).json({
+      mimeType: normalized.mimeType,
+      imageBase64: normalized.bytes.toString('base64'),
+    })
   } catch (error) {
     console.error('NovelAI ImageGen proxy failed:', error instanceof Error ? error.message : error)
-    return res.status(502).json({ error: 'NovelAI ImageGen could not be reached.' })
+    return res.status(502).json({ error: 'NovelAI ImageGen returned an unreadable image response.' })
   }
 })
 

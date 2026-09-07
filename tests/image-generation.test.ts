@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildWorldImagePrompt, createFreeNovelAiRequest, estimateNovelAiCost } from '../src/image/image-generation.ts'
+import { buildNovelAiPayload } from '../src/image/novelai.ts'
 import { createEmptyWorld } from '../src/domain/world.ts'
 
 test('free NovelAI preset uses normal landscape dimensions and 28 steps', () => {
@@ -9,6 +10,16 @@ test('free NovelAI preset uses normal landscape dimensions and 28 steps', () => 
   assert.equal(request.steps, 28)
   assert.deepEqual(request.dimensions, { width: 1216, height: 832 })
   assert.equal(estimateNovelAiCost(request).freeEligible, true)
+})
+
+test('NovelAI V5 payload uses params_version 3 and V4 prompt structures', () => {
+  const request = createFreeNovelAiRequest('world', 'world-1', 'misty mountain valley', 'blurry')
+  const payload = buildNovelAiPayload(request) as { model: string; parameters: Record<string, unknown> }
+  assert.equal(payload.model, 'nai-diffusion-5-full')
+  assert.equal(payload.parameters.params_version, 3)
+  assert.equal(payload.parameters.n_samples, 1)
+  assert.ok(payload.parameters.v4_prompt)
+  assert.ok(payload.parameters.v4_negative_prompt)
 })
 
 test('cost estimator flags settings outside the free preset', () => {

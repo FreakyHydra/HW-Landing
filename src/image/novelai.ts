@@ -5,6 +5,12 @@ export type NovelAiGenerationResult = {
   mimeType: string
 }
 
+type NovelAiImageProxyResponse = {
+  imageBase64?: string
+  mimeType?: string
+  error?: string
+}
+
 function randomSeed(): number {
   return Math.floor(Math.random() * 2_147_483_647)
 }
@@ -18,7 +24,7 @@ export function buildNovelAiPayload(request: ImageGenerationRequest): Record<str
     model: request.model,
     action: 'generate',
     parameters: {
-      params_version: 4,
+      params_version: 3,
       width: request.dimensions.width,
       height: request.dimensions.height,
       scale: 6,
@@ -51,24 +57,11 @@ export function buildNovelAiPayload(request: ImageGenerationRequest): Record<str
   }
 }
 
-async function unzipFirstFile(zip: ArrayBuffer): Promise<Blob> {
-  const view = new DataView(zip)
-  if (view.byteLength < 30 || view.getUint32(0, true) !== 0x04034b50) throw new Error('NovelAI returned an unexpected image archive.')
-  const compressionMethod = view.getUint16(8, true)
-  const compressedSize = view.getUint32(18, true)
-  const fileNameLength = view.getUint16(26, true)
-  const extraLength = view.getUint16(28, true)
-  const start = 30 + fileNameLength + extraLength
-  const end = compressedSize ? start + compressedSize : view.byteLength
-  const compressed = zip.slice(start, Math.min(end, view.byteLength))
-
-  if (compressionMethod === 0) return new Blob([compressed], { type: 'image/png' })
-  if (compressionMethod !== 8) throw new Error(`Unsupported NovelAI ZIP compression method: ${compressionMethod}`)
-  if (typeof DecompressionStream === 'undefined') throw new Error('This browser cannot unpack NovelAI image responses.')
-
-  const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
-  const bytes = await new Response(stream).arrayBuffer()
-  return new Blob([bytes], { type: 'image/png' })
+function base64ToBlob(base64: string, mimeType: string): Blob {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return new Blob([bytes], { type: mimeType })
 }
 
 export class NovelAiImageProvider {
@@ -82,13 +75,16 @@ export class NovelAiImageProvider {
       },
       body: JSON.stringify(buildNovelAiPayload(request)),
     })
+
+    let payload: NovelAiImageProxyResponse = {}
+    try { payload = await response.json() as NovelAiImageProxyResponse } catch {}
+
     if (!response.ok) {
-      let detail = ''
-      try { detail = (await response.json()).error || '' } catch { detail = await response.text() }
-      throw new Error(detail || `NovelAI image generation failed (${response.status}).`)
+      throw new Error(payload.error || `NovelAI image generation failed (${response.status}).`)
     }
-    const archive = await response.arrayBuffer()
-    const blob = await unzipFirstFile(archive)
-    return { blob, mimeType: blob.type || 'image/png' }
+    if (!payload.imageBase64) throw new Error('NovelAI image proxy returned no image data.')
+
+    const mimeType = payload.mimeType || 'image/png'
+    return { blob: base64ToBlob(payload.imageBase64, mimeType), mimeType }
   }
 }
